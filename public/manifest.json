@@ -1,0 +1,24 @@
+{
+  "name": "La Barra PWA",
+  "short_name": "La Barra",
+  "description": "Menu interactivo y panel administrativo para La Barra.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4efe7",
+  "theme_color": "#b14623",
+  "lang": "es-MX",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

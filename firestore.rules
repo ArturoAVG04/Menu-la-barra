@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /sucursales/{branchId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+
+      match /{document=**} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+    }
+
+    match /orders/{orderId} {
+      allow create: if true;
+      allow read: if isSignedIn();
+      allow update, delete: if isSignedIn();
+    }
+
+    match /branding/{document=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+  }
+}
