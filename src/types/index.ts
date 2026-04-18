@@ -30,6 +30,8 @@ export type ProductModifier = {
   options: ModifierOption[];
 };
 
+export type ModifierTemplate = ProductModifier;
+
 export type Category = {
   id: string;
   sucursalID: string;
@@ -40,6 +42,7 @@ export type Category = {
 export type Product = {
   id: string;
   sucursalID: string;
+  branchIds?: string[];
   categoryId: string;
   name: string;
   description: string;

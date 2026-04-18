@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -10,7 +11,15 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase/config";
-import type { BrandingSettings, Branch, CartItem, Category, Order, Product } from "@/types";
+import type {
+  BrandingSettings,
+  Branch,
+  CartItem,
+  Category,
+  ModifierTemplate,
+  Order,
+  Product
+} from "@/types";
 
 export function subscribeBranches(callback: (branches: Branch[]) => void) {
   return onSnapshot(collection(db, "sucursales"), (snapshot) => {
@@ -38,6 +47,16 @@ export function subscribeProducts(
   const ref = query(collection(db, "sucursales", branchId, "products"), orderBy("name", "asc"));
   return onSnapshot(ref, (snapshot) => {
     callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Product)));
+  });
+}
+
+export function subscribeModifiers(
+  branchId: string,
+  callback: (modifiers: ModifierTemplate[]) => void
+) {
+  const ref = query(collection(db, "sucursales", branchId, "modifiers"), orderBy("name", "asc"));
+  return onSnapshot(ref, (snapshot) => {
+    callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as ModifierTemplate)));
   });
 }
 
@@ -81,8 +100,18 @@ export async function saveBranch(branch: Branch) {
   );
 }
 
+export async function deleteBranch(branchId: string) {
+  return deleteDoc(doc(db, "sucursales", branchId));
+}
+
 export async function saveCategory(branchId: string, category: Category) {
   return setDoc(doc(db, "sucursales", branchId, "categories", category.id), category, {
+    merge: true
+  });
+}
+
+export async function saveModifier(branchId: string, modifier: ModifierTemplate) {
+  return setDoc(doc(db, "sucursales", branchId, "modifiers", modifier.id), modifier, {
     merge: true
   });
 }
