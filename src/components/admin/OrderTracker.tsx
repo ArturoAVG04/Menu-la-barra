@@ -36,7 +36,6 @@ export function OrderTracker({ orders }: OrderTrackerProps) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.25em] text-brand">Pedidos</p>
-          <h2 className="mt-2 text-2xl font-semibold text-text">Kanban operativo</h2>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
           <BellRing size={16} />
@@ -44,7 +43,7 @@ export function OrderTracker({ orders }: OrderTrackerProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-4">
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
         {(["new", "preparing", "ready", "delivered"] as const).map((status) => (
           <div key={status} className="rounded-shell border border-line bg-panel p-4">
             <div className="mb-4 flex items-center justify-between">
@@ -85,4 +84,3 @@ export function OrderTracker({ orders }: OrderTrackerProps) {
     </section>
   );
 }
-

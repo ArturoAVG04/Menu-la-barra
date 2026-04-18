@@ -5,6 +5,7 @@ import {
   ClipboardList,
   LayoutGrid,
   Menu,
+  LogOut,
   MoonStar,
   Palette,
   Plus,
@@ -173,33 +174,39 @@ export function AdminShell() {
 
   function renderSidebar() {
     return (
-      <div className="flex h-full flex-col">
+      <div className="flex h-full flex-col p-6">
         <div className="border-b border-line pb-4">
           <div className="flex items-center justify-between">
             {!sidebarCollapsed && (
-              <div>
-                <p className="text-sm uppercase tracking-[0.25em] text-brand">La Barra</p>
-                <h1 className="mt-2 text-xl font-semibold text-text">Admin</h1>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.25em] text-brand">La Barra</p>
+                  <h1 className="mt-2 text-xl font-semibold text-text">Admin</h1>
+                </div>
+                <div className="flex items-center gap-2 self-start rounded-full bg-success/15 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-success">
+                  <ShieldCheck size={16} />
+                  Sesión Activa
+                </div>
               </div>
             )}
             <button
               type="button"
               onClick={() => setSidebarCollapsed((current) => !current)}
-              className="hidden min-h-11 min-w-11 rounded-full border border-line bg-surface text-text xl:inline-flex xl:items-center xl:justify-center"
+              className="hidden h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-text xl:inline-flex"
             >
               {sidebarCollapsed ? ">" : "<"}
             </button>
           </div>
         </div>
 
-        <div className="mt-4 space-y-3">
+        <div className="flex flex-1 flex-col overflow-y-auto py-6 scrollbar-none">
           {!sidebarCollapsed && (
-            <label className="block space-y-2 text-sm text-text">
-              <span>Sucursal</span>
+            <div className="mb-6 space-y-2">
+              <span className="px-2 text-[10px] font-bold uppercase tracking-widest text-muted">Sucursal activa</span>
               <select
                 value={adminBranchId}
                 onChange={(event) => setAdminBranchId(event.target.value)}
-                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-sm text-text outline-none transition focus:border-brand"
               >
                 <option value="">Selecciona</option>
                 {branches.map((branch) => (
@@ -208,58 +215,59 @@ export function AdminShell() {
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
           )}
+
+          <nav className={[
+            "space-y-1 transition-all duration-300",
+            !sidebarCollapsed ? "rounded-card border border-line bg-surface/40 p-1.5 shadow-inner" : "flex flex-col items-center gap-3"
+          ].join(" ")}>
+            {[
+              { id: "overview", label: "General", icon: Settings2 },
+              { id: "business", label: "Datos", icon: Store },
+              { id: "menu", label: "Menú", icon: LayoutGrid },
+              { id: "themes", label: "Temas", icon: Palette },
+              { id: "orders", label: "Pedidos", icon: ClipboardList }
+            ].map((item) => {
+              const Icon = item.icon;
+              const active = section === item.id;
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setSection(item.id as Section);
+                    setMobileDrawerOpen(false);
+                  }}
+                  className={[
+                    "inline-flex min-h-[44px] w-full items-center gap-3 rounded-card px-4 py-3 text-left text-sm font-semibold transition-all duration-200",
+                    active
+                      ? "bg-brand text-white shadow-glow"
+                      : "border border-transparent text-text hover:border-line hover:bg-surface/80",
+                    sidebarCollapsed ? "justify-center px-0 h-11 w-11" : ""
+                  ].join(" ")}
+                  title={item.label}
+                >
+                  <Icon size={18} />
+                  {!sidebarCollapsed && item.label}
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        <nav className="mt-6 space-y-2">
-          {[
-            { id: "overview", label: "General", icon: Settings2 },
-            { id: "business", label: "Datos", icon: Store },
-            { id: "menu", label: "Menú", icon: LayoutGrid },
-            { id: "themes", label: "Temas", icon: Palette },
-            { id: "orders", label: "Pedidos", icon: ClipboardList }
-          ].map((item) => {
-            const Icon = item.icon;
-            const active = section === item.id;
-
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setSection(item.id as Section);
-                  setMobileDrawerOpen(false);
-                }}
-                className={[
-                  "flex min-h-11 w-full items-center gap-3 rounded-card px-4 py-3 text-left text-sm font-semibold transition",
-                  active
-                    ? "bg-brand text-white shadow-glow"
-                    : "border border-transparent text-text hover:border-line hover:bg-surface",
-                  sidebarCollapsed ? "justify-center px-0" : ""
-                ].join(" ")}
-              >
-                <Icon size={18} />
-                {!sidebarCollapsed && item.label}
-              </button>
-            );
-          })}
-        </nav>
-
         <div className="mt-auto border-t border-line pt-4">
-          <div className="flex items-center justify-between gap-3">
-            {!sidebarCollapsed && (
-              <div className="flex items-center gap-2 rounded-full bg-success/15 px-4 py-2 text-sm font-semibold text-success">
-                <ShieldCheck size={16} />
-                Activa
-              </div>
-            )}
+          <div className={sidebarCollapsed ? "flex flex-col items-center gap-4" : "flex flex-col gap-3"}>
             <button
               type="button"
               onClick={() => void logout()}
-              className="min-h-11 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+              className={[
+                "inline-flex min-h-[44px] items-center justify-center rounded-full border border-line text-sm font-semibold text-text transition hover:bg-surface",
+                sidebarCollapsed ? "w-11 px-0" : "w-full px-4 py-3"
+              ].join(" ")}
             >
-              {sidebarCollapsed ? "X" : "Salir"}
+              {sidebarCollapsed ? <LogOut size={18} /> : "Cerrar Sesión"}
             </button>
           </div>
         </div>
@@ -276,81 +284,86 @@ export function AdminShell() {
   }
 
   return (
-    <div className="relative">
-      <div className="pointer-events-none fixed right-4 top-20 z-50 space-y-2">
+    <div className="min-h-screen bg-panel text-text">
+      {/* Notificaciones Toasts - Siempre arriba del todo en z-index */}
+      <div className="pointer-events-none fixed bottom-10 left-0 right-0 z-[60] flex flex-col items-center gap-2 px-4">
         {notices.map((notice) => (
           <div
             key={notice.id}
-            className="pointer-events-auto rounded-card border border-success/30 bg-success/15 px-4 py-3 text-sm font-semibold text-success shadow-glow"
+            className="pointer-events-auto rounded-full border border-success/30 bg-panel px-6 py-3 text-sm font-bold text-success shadow-2xl backdrop-blur-md"
           >
             {notice.message}
           </div>
         ))}
       </div>
 
-      <header className="sticky top-0 z-40 mb-6 flex items-center justify-between rounded-shell border border-line bg-panel/95 px-4 py-3 backdrop-blur md:px-6">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setMobileDrawerOpen(true)}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line bg-surface text-text xl:hidden"
-          >
-            <Menu size={18} />
-          </button>
-          <h1 className="text-lg font-semibold text-text">Dashboard</h1>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 py-3 text-sm font-semibold text-text"
-          >
-            {theme === "dark" ? <SunMedium size={16} /> : <MoonStar size={16} />}
-            {theme === "dark" ? "Claro" : "Oscuro"}
-          </button>
-          <a
-            href="/menu"
-            className="inline-flex min-h-11 items-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
-          >
-            Ver menú
-          </a>
-        </div>
-      </header>
-
-      {mobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 xl:hidden">
-          <button
-            type="button"
-            onClick={() => setMobileDrawerOpen(false)}
-            className="absolute inset-0 bg-black/50"
-            aria-label="Cerrar menú"
-          />
-          <div className="absolute left-0 top-0 h-full w-[86vw] max-w-[320px] border-r border-line bg-panel p-4 shadow-glow">
-            {renderSidebar()}
-          </div>
-        </div>
-      )}
-
-      <div className="grid gap-6 xl:grid-cols-[auto_minmax(0,1fr)]">
+      <div className="flex min-h-screen">
+        {/* Sidebar Fija para Desktop */}
         <aside
           className={[
-            "hidden h-[calc(100vh-120px)] sticky top-[96px] rounded-shell border border-line bg-panel p-4 xl:block",
+            "hidden xl:block h-screen sticky top-0 border-r border-line bg-panel transition-all duration-300",
             sidebarCollapsed ? "w-[88px]" : "w-[288px]"
           ].join(" ")}
         >
           {renderSidebar()}
         </aside>
 
-        <main className="space-y-6">
-          {section === "overview" && (
-            <div className="space-y-6">
+        {/* Área de Contenido */}
+        <div className="flex flex-1 flex-col min-w-0">
+          <header className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-panel/95 px-4 py-3 backdrop-blur md:px-6">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileDrawerOpen(true)}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-text xl:hidden"
+              >
+                <Menu size={18} />
+              </button>
+              <h1 className="text-lg font-bold tracking-tight text-text">
+                {sidebarCollapsed || mobileDrawerOpen ? "La Barra" : (section === 'overview' ? 'La Barra' : 'Admin')}
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-line bg-surface px-4 py-3 text-sm font-semibold text-text"
+              >
+                {theme === "dark" ? <SunMedium size={16} /> : <MoonStar size={16} />}
+                <span className="hidden sm:inline">{theme === "dark" ? "Claro" : "Oscuro"}</span>
+              </button>
+              <a
+                href="/menu"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-line bg-surface px-4 py-3 text-sm font-semibold text-text"
+              >
+                Ver menú
+              </a>
+            </div>
+          </header>
+
+          {/* Drawer para Móvil - Overlay */}
+          {mobileDrawerOpen && (
+            <div className="fixed inset-0 z-50 xl:hidden">
+              <div 
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+                onClick={() => setMobileDrawerOpen(false)}
+              />
+              <div className="absolute left-0 top-0 h-full w-[280px] border-r border-line bg-panel shadow-2xl">
+                {renderSidebar()}
+              </div>
+            </div>
+          )}
+
+          <main className="p-4 md:p-8 space-y-6">
+            {section === "overview" && (
+              <div className="space-y-6">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-2xl font-semibold text-text">Sucursales</h2>
                 <button
                   type="button"
                   onClick={() => setShowCreateBranch(true)}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand px-4 py-3 text-sm font-semibold text-white"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-brand px-4 py-3 text-sm font-semibold text-white"
                 >
                   <Plus size={16} /> Agregar sucursal
                 </button>
@@ -362,7 +375,7 @@ export function AdminShell() {
                     branches.map((branch) => (
                       <div
                         key={branch.id}
-                        className="rounded-card border border-line bg-surface px-4 py-4"
+                        className="rounded-card border border-line bg-surface p-3 sm:px-4 sm:py-4"
                       >
                         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                           <div>
@@ -390,14 +403,14 @@ export function AdminShell() {
                                 setAdminBranchId(branch.id);
                                 setSection("business");
                               }}
-                              className="min-h-11 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                              className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-line px-4 py-2 text-sm font-semibold text-text"
                             >
                               Editar
                             </button>
                             <button
                               type="button"
                               onClick={() => void handleDeleteBranch(branch.id)}
-                              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-danger/30 px-4 py-3 text-sm font-semibold text-danger"
+                              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-danger/30 px-4 py-2 text-sm font-semibold text-danger"
                             >
                               <Trash2 size={16} />
                               Borrar
@@ -505,9 +518,9 @@ export function AdminShell() {
                       {(branchEditor.weeklyHours || defaultSchedule()).map((item, index) => (
                         <div
                           key={`${item.day}-${index}`}
-                          className="grid gap-3 rounded-card border border-line bg-surface p-4 md:grid-cols-[120px_1fr_140px_24px_140px]"
+                          className="flex flex-wrap items-center gap-4 rounded-card border border-line bg-surface p-3"
                         >
-                          <label className="flex min-h-11 items-center gap-3 text-sm text-text">
+                          <label className="flex min-h-[44px] flex-1 items-center gap-3 text-sm font-medium text-text">
                             <input
                               type="checkbox"
                               checked={item.enabled}
@@ -529,52 +542,52 @@ export function AdminShell() {
                             />
                             {item.day}
                           </label>
-                          <div className="hidden md:block" />
-                          <input
-                            type="time"
-                            value={item.open}
-                            disabled={!item.enabled}
-                            onChange={(event) =>
-                              setBranchEditor((current) =>
-                                current
-                                  ? {
-                                      ...current,
-                                      weeklyHours: (current.weeklyHours || defaultSchedule()).map(
-                                        (hourItem, hourIndex) =>
-                                          hourIndex === index
-                                            ? { ...hourItem, open: event.target.value }
-                                            : hourItem
-                                      )
-                                    }
-                                  : current
-                              )
-                            }
-                            className="min-h-11 rounded-card border border-line bg-panel px-4 py-3 text-sm text-text outline-none disabled:text-muted"
-                          />
-                          <div className="flex min-h-11 items-center justify-center text-sm text-muted">
-                            a
+                          
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              value={item.open}
+                              disabled={!item.enabled}
+                              onChange={(event) =>
+                                setBranchEditor((current) =>
+                                  current
+                                    ? {
+                                        ...current,
+                                        weeklyHours: (current.weeklyHours || defaultSchedule()).map(
+                                          (hourItem, hourIndex) =>
+                                            hourIndex === index
+                                              ? { ...hourItem, open: event.target.value }
+                                              : hourItem
+                                        )
+                                      }
+                                    : current
+                                )
+                              }
+                              className="min-h-[44px] w-32 rounded-card border border-line bg-panel px-3 py-2 text-sm text-text outline-none disabled:opacity-50"
+                            />
+                            <span className="text-xs text-muted font-bold">A</span>
+                            <input
+                              type="time"
+                              value={item.close}
+                              disabled={!item.enabled}
+                              onChange={(event) =>
+                                setBranchEditor((current) =>
+                                  current
+                                    ? {
+                                        ...current,
+                                        weeklyHours: (current.weeklyHours || defaultSchedule()).map(
+                                          (hourItem, hourIndex) =>
+                                            hourIndex === index
+                                              ? { ...hourItem, close: event.target.value }
+                                              : hourItem
+                                        )
+                                      }
+                                    : current
+                                )
+                              }
+                              className="min-h-[44px] w-32 rounded-card border border-line bg-panel px-3 py-2 text-sm text-text outline-none disabled:opacity-50"
+                            />
                           </div>
-                          <input
-                            type="time"
-                            value={item.close}
-                            disabled={!item.enabled}
-                            onChange={(event) =>
-                              setBranchEditor((current) =>
-                                current
-                                  ? {
-                                      ...current,
-                                      weeklyHours: (current.weeklyHours || defaultSchedule()).map(
-                                        (hourItem, hourIndex) =>
-                                          hourIndex === index
-                                            ? { ...hourItem, close: event.target.value }
-                                            : hourItem
-                                      )
-                                    }
-                                  : current
-                              )
-                            }
-                            className="min-h-11 rounded-card border border-line bg-panel px-4 py-3 text-sm text-text outline-none disabled:text-muted"
-                          />
                         </div>
                       ))}
                     </div>
@@ -583,7 +596,7 @@ export function AdminShell() {
                   <button
                     type="submit"
                     disabled={isUpdatingBranch}
-                    className="min-h-11 rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
+                    className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
                   >
                     {isUpdatingBranch ? "Guardando..." : "Guardar cambios"}
                   </button>
@@ -625,6 +638,7 @@ export function AdminShell() {
           )}
         </main>
       </div>
+      </div>
 
       {showCreateBranch && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
@@ -634,7 +648,7 @@ export function AdminShell() {
               <button
                 type="button"
                 onClick={() => setShowCreateBranch(false)}
-                className="min-h-11 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
               >
                 Cerrar
               </button>
@@ -698,7 +712,7 @@ export function AdminShell() {
               <button
                 type="submit"
                 disabled={isCreatingBranch || !branchDraft.name.trim()}
-                className="min-h-11 rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
               >
                 {isCreatingBranch ? "Guardando..." : "Guardar"}
               </button>

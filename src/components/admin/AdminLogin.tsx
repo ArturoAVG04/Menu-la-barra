@@ -42,7 +42,6 @@ export function AdminLogin() {
       <div>
         <p className="text-sm uppercase tracking-[0.25em] text-brand">Acceso protegido</p>
         <h1 className="mt-2 text-3xl font-semibold text-text">Login admin</h1>
-        <p className="mt-2 text-sm text-muted">Por ahora, cualquier usuario autenticado puede entrar al panel.</p>
       </div>
 
       <label className="block space-y-2 text-sm text-text">

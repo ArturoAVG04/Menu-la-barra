@@ -104,6 +104,14 @@ export async function deleteBranch(branchId: string) {
   return deleteDoc(doc(db, "sucursales", branchId));
 }
 
+export async function deleteProduct(branchId: string, productId: string) {
+  return deleteDoc(doc(db, "sucursales", branchId, "products", productId));
+}
+
+export async function deleteCategory(branchId: string, categoryId: string) {
+  return deleteDoc(doc(db, "sucursales", branchId, "categories", categoryId));
+}
+
 export async function saveCategory(branchId: string, category: Category) {
   return setDoc(doc(db, "sucursales", branchId, "categories", category.id), category, {
     merge: true
@@ -114,6 +122,10 @@ export async function saveModifier(branchId: string, modifier: ModifierTemplate)
   return setDoc(doc(db, "sucursales", branchId, "modifiers", modifier.id), modifier, {
     merge: true
   });
+}
+
+export async function deleteModifier(branchId: string, modifierId: string) {
+  return deleteDoc(doc(db, "sucursales", branchId, "modifiers", modifierId));
 }
 
 export function subscribeBranding(
