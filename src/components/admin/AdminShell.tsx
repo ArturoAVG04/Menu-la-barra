@@ -95,7 +95,9 @@ export function AdminShell() {
     }
 
     setAdminBranchId((current) =>
-      current && branches.some((branch) => branch.id === current) ? current : branches[0].id
+      current && branches.some((branch) => branch.id === current)
+        ? current
+        : (branches.find((branch) => branch.isPrimary) ?? branches[0]).id
     );
   }, [branches]);
 

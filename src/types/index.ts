@@ -44,6 +44,7 @@ export type Product = {
   sucursalID: string;
   branchIds?: string[];
   categoryId: string;
+  sortOrder?: number;
   name: string;
   description: string;
   price: number;

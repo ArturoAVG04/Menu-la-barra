@@ -21,6 +21,16 @@ import type {
   Product
 } from "@/types";
 
+function sortBySortOrder<T extends { sortOrder?: number; name?: string }>(items: T[]) {
+  return [...items].sort((a, b) => {
+    const left = typeof a.sortOrder === "number" ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+    const right = typeof b.sortOrder === "number" ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+
+    if (left !== right) return left - right;
+    return (a.name ?? "").localeCompare(b.name ?? "", "es", { sensitivity: "base" });
+  });
+}
+
 export function subscribeBranches(callback: (branches: Branch[]) => void) {
   return onSnapshot(collection(db, "sucursales"), (snapshot) => {
     callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Branch)));
@@ -31,12 +41,11 @@ export function subscribeCategories(
   branchId: string,
   callback: (categories: Category[]) => void
 ) {
-  const ref = query(
-    collection(db, "sucursales", branchId, "categories"),
-    orderBy("sortOrder", "asc")
-  );
+  const ref = collection(db, "sucursales", branchId, "categories");
   return onSnapshot(ref, (snapshot) => {
-    callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Category)));
+    callback(
+      sortBySortOrder(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Category)))
+    );
   });
 }
 
@@ -44,9 +53,11 @@ export function subscribeProducts(
   branchId: string,
   callback: (products: Product[]) => void
 ) {
-  const ref = query(collection(db, "sucursales", branchId, "products"), orderBy("name", "asc"));
+  const ref = collection(db, "sucursales", branchId, "products");
   return onSnapshot(ref, (snapshot) => {
-    callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Product)));
+    callback(
+      sortBySortOrder(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Product)))
+    );
   });
 }
 
@@ -71,12 +82,32 @@ export function subscribeOrders(branchId: string, callback: (orders: Order[]) =>
   });
 }
 
+function normalizeCartItems(items: CartItem[]) {
+  return items.map((item) => ({
+    id: item.id,
+    productId: item.productId,
+    name: item.name,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    ...(typeof item.basePrice === "number" ? { basePrice: item.basePrice } : {}),
+    ...(item.imageUrl ? { imageUrl: item.imageUrl } : {}),
+    ...(item.note ? { note: item.note } : {}),
+    selectedModifiers: item.selectedModifiers.map((modifier) => ({
+      modifierId: modifier.modifierId,
+      optionIds: modifier.optionIds,
+      ...(modifier.modifierName ? { modifierName: modifier.modifierName } : {}),
+      ...(modifier.optionNames?.length ? { optionNames: modifier.optionNames } : {}),
+      ...(typeof modifier.priceDelta === "number" ? { priceDelta: modifier.priceDelta } : {})
+    }))
+  }));
+}
+
 export async function createOrder(branchId: string, items: CartItem[], customerName: string) {
   const total = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
   return addDoc(collection(db, "orders"), {
     sucursalID: branchId,
-    items,
+    items: normalizeCartItems(items),
     total,
     customerName,
     status: "new",

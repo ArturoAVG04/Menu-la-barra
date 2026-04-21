@@ -1,7 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, ImagePlus, Palette, Percent, Plus, Tag, Trash2, Edit2, Type } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  ImagePlus,
+  Palette,
+  Percent,
+  Plus,
+  Tag,
+  Trash2,
+  Edit2,
+  Type
+} from "lucide-react";
 
 import { MenuCard } from "@/components/customer/MenuCard";
 import { useAppState } from "@/components/providers/AppProviders";
@@ -45,6 +57,7 @@ const initialProduct: Product = {
   sucursalID: "",
   branchIds: [],
   categoryId: "",
+  sortOrder: 0,
   name: "",
   description: "",
   price: 0,
@@ -128,6 +141,7 @@ export function AdminProductForm({
       ...product,
       id: product.id || "preview",
       sucursalID: branch?.id || "",
+      sortOrder: product.sortOrder || 0,
       name: product.name || "Nombre del producto",
       description: product.description || "La vista previa cambia mientras escribes.",
       price: product.price || 0,
@@ -164,6 +178,25 @@ export function AdminProductForm({
     } finally {
       setIsSavingCategory(false);
     }
+  }
+
+  async function moveCategory(categoryId: string, direction: "up" | "down") {
+    if (!branch) return;
+
+    const index = categories.findIndex((category) => category.id === categoryId);
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (index < 0 || targetIndex < 0 || targetIndex >= categories.length) return;
+
+    const reordered = [...categories];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    await Promise.all(
+      reordered.map((category, orderIndex) =>
+        saveCategory(branch.id, { ...category, sortOrder: orderIndex + 1 })
+      )
+    );
+    onNotify("Orden de categorías actualizado");
   }
 
   async function handleDeleteCategory(id: string) {
@@ -243,11 +276,18 @@ export function AdminProductForm({
 
     setIsSavingProduct(true);
     try {
+      const currentCategoryProducts = products.filter(
+        (item) => item.categoryId === product.categoryId && item.id !== product.id
+      );
       const payload: Product = {
         ...product,
         id: product.id || crypto.randomUUID(),
         sucursalID: branch.id,
         branchIds: selectedBranchIds,
+        sortOrder:
+          typeof product.sortOrder === "number" && product.sortOrder > 0
+            ? product.sortOrder
+            : currentCategoryProducts.length + 1,
         salePrice: product.discountPercent && product.discountPercent > 0
           ? Math.max(product.price - (product.price * product.discountPercent) / 100, 0)
           : product.price
@@ -272,6 +312,32 @@ export function AdminProductForm({
     } finally {
       setIsSavingProduct(false);
     }
+  }
+
+  async function moveProduct(productId: string, direction: "up" | "down") {
+    if (!branch) return;
+
+    const currentProduct = products.find((item) => item.id === productId);
+    if (!currentProduct) return;
+
+    const categoryProducts = products.filter((item) => item.categoryId === currentProduct.categoryId);
+    const index = categoryProducts.findIndex((item) => item.id === productId);
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (index < 0 || targetIndex < 0 || targetIndex >= categoryProducts.length) return;
+
+    const reordered = [...categoryProducts];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    await Promise.all(
+      reordered.map((item, orderIndex) =>
+        saveProduct(branch.id, {
+          ...item,
+          sortOrder: orderIndex + 1
+        })
+      )
+    );
+    onNotify("Orden de productos actualizado");
   }
 
   async function handleDeleteProduct(id: string) {
@@ -560,6 +626,24 @@ export function AdminProductForm({
                   </label>
 
                   <label className="space-y-2 text-sm text-text">
+                    <span>Prioridad en la categoría</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={product.sortOrder || ""}
+                      onChange={(event) =>
+                        setProduct((current) => ({
+                          ...current,
+                          sortOrder: Number(event.target.value) || 0
+                        }))
+                      }
+                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                      placeholder="1"
+                    />
+                  </label>
+
+                  <label className="space-y-2 text-sm text-text">
                     <span>Precio base</span>
                     <input
                       type="number"
@@ -763,39 +847,88 @@ export function AdminProductForm({
             </div>
           ) : (
             <section className="rounded-shell border border-line bg-panel p-6">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {products.length ? (
-                  products.map((item) => (
-                    <div key={item.id} className="relative group">
-                      <button
-                        type="button"
-                        onClick={() => loadProductIntoEditor(item)}
-                        className={[
-                          "block w-full rounded-card border px-4 py-4 text-left transition",
-                          expandedProductId === item.id
-                            ? "border-brand bg-brand/10"
-                            : "border-line bg-surface hover:border-brand/40"
-                        ].join(" ")}
-                      >
-                        <div className="flex items-start justify-between gap-3">
+              <div className="space-y-5">
+                {categories.length ? (
+                  categories.map((category) => {
+                    const categoryProducts = products.filter((item) => item.categoryId === category.id);
+
+                    if (!categoryProducts.length) return null;
+
+                    return (
+                      <div key={category.id} className="rounded-card border border-line bg-surface p-4">
+                        <div className="mb-4 flex items-center justify-between gap-3">
                           <div>
-                            <p className="font-semibold text-text">{item.name}</p>
-                            <p className="mt-1 text-sm text-muted line-clamp-2">{item.description || "Sin descripción"}</p>
+                            <p className="font-semibold text-text">{category.name}</p>
+                            <p className="text-sm text-muted">Ordena cómo aparecerán en el menú</p>
                           </div>
                           <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
-                            {currency(item.salePrice || item.price)}
+                            {categoryProducts.length} productos
                           </span>
                         </div>
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); void handleDeleteProduct(item.id); }}
-                        className="absolute top-2 right-2 p-2 text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Eliminar producto"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))
+
+                        <div className="space-y-3">
+                          {categoryProducts.map((item, index) => (
+                            <div
+                              key={item.id}
+                              className="flex flex-col gap-3 rounded-card border border-line bg-panel px-4 py-4 md:flex-row md:items-center md:justify-between"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => loadProductIntoEditor(item)}
+                                className="flex min-w-0 flex-1 items-start text-left"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="font-semibold text-text">{item.name}</p>
+                                    <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">
+                                      #{item.sortOrder || index + 1}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-sm text-muted line-clamp-2">
+                                    {item.description || "Sin descripción"}
+                                  </p>
+                                </div>
+                              </button>
+
+                              <div className="flex items-center justify-between gap-3 md:justify-end">
+                                <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
+                                  {currency(item.salePrice || item.price)}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => void moveProduct(item.id, "up")}
+                                    disabled={index === 0}
+                                    className="rounded-full border border-line p-2 text-text disabled:text-muted disabled:opacity-50"
+                                    title="Subir"
+                                  >
+                                    <ArrowUp size={16} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void moveProduct(item.id, "down")}
+                                    disabled={index === categoryProducts.length - 1}
+                                    className="rounded-full border border-line p-2 text-text disabled:text-muted disabled:opacity-50"
+                                    title="Bajar"
+                                  >
+                                    <ArrowDown size={16} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleDeleteProduct(item.id)}
+                                    className="rounded-full border border-line p-2 text-muted hover:text-danger"
+                                    title="Eliminar producto"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="col-span-full rounded-card border border-dashed border-line bg-surface p-12 text-center text-muted">
                     No hay productos en esta sucursal.
@@ -855,7 +988,7 @@ export function AdminProductForm({
             <section className="rounded-shell border border-line bg-panel p-6">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {categories.length ? (
-                  categories.map((category) => (
+                  categories.map((category, index) => (
                     <div key={category.id} className="group rounded-card border border-line bg-surface px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -866,6 +999,25 @@ export function AdminProductForm({
                         </div>
                         <div className="flex items-center gap-1 opacity-100 sm:opacity-0 transition group-hover:opacity-100">
                           <button
+                            type="button"
+                            onClick={() => void moveCategory(category.id, "up")}
+                            disabled={index === 0}
+                            className="p-2 text-muted hover:text-brand disabled:opacity-50"
+                            title="Subir"
+                          >
+                            <ArrowUp size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void moveCategory(category.id, "down")}
+                            disabled={index === categories.length - 1}
+                            className="p-2 text-muted hover:text-brand disabled:opacity-50"
+                            title="Bajar"
+                          >
+                            <ArrowDown size={16} />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => {
                               setEditingCategoryId(category.id);
                               setCategoryName(category.name);
@@ -876,6 +1028,7 @@ export function AdminProductForm({
                             <Edit2 size={16} />
                           </button>
                           <button
+                            type="button"
                             onClick={() => void handleDeleteCategory(category.id)}
                             className="p-2 text-muted hover:text-danger"
                           >

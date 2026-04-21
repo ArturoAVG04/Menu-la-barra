@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ChevronRight,
+  CheckCircle2,
+  LoaderCircle,
   Minus,
   MoonStar,
   Plus,
@@ -13,6 +15,7 @@ import {
   Store,
   SunMedium,
   Trash2,
+  MessageCircle,
   X
 } from "lucide-react";
 
@@ -25,11 +28,25 @@ import { currency } from "@/lib/utils";
 import type { CartItem, Product } from "@/types";
 
 type ModifierSelectionMap = Record<string, string[]>;
+const DEFAULT_WHATSAPP_LINK = "https://wa.me/message/JRC557CVY6LP1";
 
 function createModifierMap(item?: CartItem) {
   return Object.fromEntries(
     (item?.selectedModifiers ?? []).map((modifier) => [modifier.modifierId, modifier.optionIds])
   ) as ModifierSelectionMap;
+}
+
+function getWhatsAppHref(value?: string) {
+  if (!value?.trim()) return null;
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return null;
+
+  return `https://wa.me/${digits}`;
 }
 
 export function CustomerShell() {
@@ -56,6 +73,8 @@ export function CustomerShell() {
   const [editorNote, setEditorNote] = useState("");
   const [editorQuantity, setEditorQuantity] = useState(1);
   const [editorError, setEditorError] = useState("");
+  const [submitState, setSubmitState] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [submitMessage, setSubmitMessage] = useState("");
 
   useEffect(() => {
     const shouldLock = cartOpen || branchPickerOpen || Boolean(editingCartItemId);
@@ -104,6 +123,10 @@ export function CustomerShell() {
   const cartTotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
     [cart]
+  );
+  const whatsappHref = useMemo(
+    () => getWhatsAppHref(activeBranch?.whatsapp) ?? DEFAULT_WHATSAPP_LINK,
+    [activeBranch?.whatsapp]
   );
 
   const editingCartItem = useMemo(
@@ -260,10 +283,23 @@ export function CustomerShell() {
       return;
     }
 
-    await createOrder(activeBranch.id, cart, customerName.trim());
-    clearCart();
-    setCustomerName("");
-    closeEditor();
+    try {
+      setSubmitState("sending");
+      setSubmitMessage("");
+
+      await createOrder(activeBranch.id, cart, customerName.trim());
+      clearCart();
+      setCustomerName("");
+      setCartOpen(false);
+      closeEditor();
+      setSubmitState("success");
+      setSubmitMessage("Tu pedido fue enviado correctamente.");
+    } catch (error) {
+      console.error("Error al enviar pedido:", error);
+      setSubmitState("error");
+      setSubmitMessage("No pudimos enviar tu pedido. Intenta nuevamente.");
+      setCartOpen(true);
+    }
   }
 
   if (!activeBranch) {
@@ -275,7 +311,7 @@ export function CustomerShell() {
   }
 
   return (
-    <div className="space-y-6 pb-28">
+    <div className="space-y-6 pb-40 md:pb-32">
       <header className="overflow-hidden rounded-shell border border-line bg-panel">
         <div
           className="relative p-5 md:p-6"
@@ -289,9 +325,9 @@ export function CustomerShell() {
         >
           <div className="absolute inset-0 bg-gradient-to-br from-brand/10 via-transparent to-accent/15" />
           <div className="relative space-y-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
                   {branding.logoUrl ? (
                     <div className="relative h-14 w-14 overflow-hidden rounded-full border border-white/20 bg-white/90 p-2 shadow-glow">
                       <Image
@@ -341,7 +377,7 @@ export function CustomerShell() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                 <button
                   type="button"
                   onClick={() => setBranchPickerOpen(true)}
@@ -375,12 +411,12 @@ export function CustomerShell() {
         </div>
       </header>
 
-      <nav className="flex flex-wrap gap-2">
+      <nav className="flex flex-wrap gap-2 lg:gap-3">
         {categories.map((category) => (
           <a
             key={category.id}
             href={`#category-${category.id}`}
-            className="inline-flex min-h-11 items-center rounded-full border border-line bg-panel px-4 py-3 text-sm font-semibold text-text transition hover:border-brand/40 hover:bg-brand/5"
+            className="inline-flex min-h-11 max-w-full items-center justify-center rounded-full border border-line bg-panel px-4 py-3 text-center text-sm font-semibold text-text transition hover:border-brand/40 hover:bg-brand/5"
           >
             {category.name}
           </a>
@@ -420,26 +456,70 @@ export function CustomerShell() {
         </section>
       )}
 
-      {cart.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setCartOpen(true)}
-          className="fixed bottom-4 right-4 z-40 flex w-[calc(100%-2rem)] max-w-md items-center justify-between rounded-full border border-line bg-panel px-4 py-3 text-left shadow-glow md:w-auto md:min-w-[320px]"
-        >
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-brand/10 p-3 text-brand">
-              <ShoppingBag size={18} />
+      <div className="fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-6xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        {whatsappHref ? (
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-14 w-14 items-center justify-center self-start rounded-full border border-[#25D366]/30 bg-[#25D366] text-white shadow-glow md:hidden"
+            aria-label="Enviar mensaje por WhatsApp"
+          >
+            <MessageCircle size={24} />
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="inline-flex h-14 w-14 items-center justify-center self-start rounded-full border border-line bg-panel text-muted md:hidden"
+            aria-label="WhatsApp disponible pronto"
+          >
+            <MessageCircle size={24} />
+          </button>
+        )}
+
+        {whatsappHref ? (
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noreferrer"
+            className="hidden min-h-12 items-center justify-center gap-2 self-start rounded-full border border-[#25D366]/30 bg-[#25D366] px-5 py-3 text-sm font-semibold text-white shadow-glow md:inline-flex"
+          >
+            <MessageCircle size={18} />
+            Enviar mensaje por WhatsApp
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="hidden min-h-12 items-center justify-center gap-2 self-start rounded-full border border-line bg-panel px-5 py-3 text-sm font-semibold text-muted md:inline-flex"
+          >
+            <MessageCircle size={18} />
+            WhatsApp disponible pronto
+          </button>
+        )}
+
+        {cart.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setCartOpen(true)}
+            className="flex w-full items-center justify-between rounded-full border border-line bg-panel px-4 py-3 text-left shadow-glow md:ml-auto md:max-w-md"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-brand/10 p-3 text-brand">
+                <ShoppingBag size={18} />
+              </div>
+              <div>
+                <p className="font-semibold text-text">Tu carrito</p>
+                <p className="text-sm text-muted">
+                  {cartItemsCount} items · {currency(cartTotal)}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-text">Tu carrito</p>
-              <p className="text-sm text-muted">
-                {cartItemsCount} items · {currency(cartTotal)}
-              </p>
-            </div>
-          </div>
-          <ChevronRight size={18} className="text-muted" />
-        </button>
-      )}
+            <ChevronRight size={18} className="text-muted" />
+          </button>
+        )}
+      </div>
 
       {branchPickerOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 p-4 backdrop-blur-sm">
@@ -449,7 +529,7 @@ export function CustomerShell() {
                 <button
                   type="button"
                   onClick={() => setBranchPickerOpen(false)}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
                 >
                   <ArrowLeft size={16} />
                   Volver
@@ -539,7 +619,7 @@ export function CustomerShell() {
                 <button
                   type="button"
                   onClick={() => setCartOpen(false)}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
                 >
                   <ArrowLeft size={16} />
                   Volver
@@ -652,14 +732,25 @@ export function CustomerShell() {
                     <button
                       type="button"
                       onClick={() => void submitOrder()}
-                      disabled={!customerName.trim() || !activeBranch.isOpen}
+                      disabled={
+                        !customerName.trim() || !activeBranch.isOpen || submitState === "sending"
+                      }
                       className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
                     >
-                      {activeBranch.isOpen
+                      {submitState === "sending" ? (
+                        <span className="inline-flex items-center gap-2">
+                          <LoaderCircle size={16} className="animate-spin" />
+                          Enviando pedido...
+                        </span>
+                      ) : activeBranch.isOpen
                         ? `Enviar pedido ${currency(cartTotal)}`
                         : "Sucursal cerrada"}
                     </button>
                   </div>
+
+                  {submitState === "error" && submitMessage && (
+                    <p className="text-sm font-medium text-danger">{submitMessage}</p>
+                  )}
 
                   {!activeBranch.isOpen && (
                     <p className="text-sm font-medium text-danger">
@@ -681,7 +772,7 @@ export function CustomerShell() {
                 <button
                   type="button"
                   onClick={closeEditor}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
                 >
                   <ArrowLeft size={16} />
                   Volver al carrito
@@ -808,6 +899,36 @@ export function CustomerShell() {
                   className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white"
                 >
                   Guardar cambios {currency(editorTotal)}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {submitState === "success" && (
+        <div className="fixed inset-0 z-[70] bg-black/45 p-4 backdrop-blur-sm">
+          <div className="mx-auto flex h-full max-w-lg items-center">
+            <div className="w-full rounded-shell border border-line bg-panel p-6 shadow-glow">
+              <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-success/15 text-success">
+                <CheckCircle2 size={28} />
+              </div>
+              <div className="mt-5 text-center">
+                <h3 className="text-2xl font-semibold text-text">Pedido enviado</h3>
+                <p className="mt-2 text-sm text-muted">
+                  {submitMessage || "Tu pedido ya quedó registrado para esta sucursal."}
+                </p>
+              </div>
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmitState("idle");
+                    setSubmitMessage("");
+                  }}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white"
+                >
+                  Seguir explorando
                 </button>
               </div>
             </div>

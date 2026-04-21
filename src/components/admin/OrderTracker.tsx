@@ -70,9 +70,24 @@ export function OrderTracker({ orders }: OrderTrackerProps) {
                     </p>
                     <div className="mt-3 space-y-2 text-sm text-muted">
                       {order.items.map((item) => (
-                        <p key={item.id}>
-                          {item.quantity}x {item.name}
-                        </p>
+                        <div key={item.id} className="space-y-1">
+                          <p>
+                            {item.quantity}x {item.name}
+                          </p>
+                          {item.selectedModifiers.length > 0 && (
+                            <p className="text-xs">
+                              {item.selectedModifiers
+                                .map((modifier) =>
+                                  modifier.optionNames?.length
+                                    ? `${modifier.modifierName}: ${modifier.optionNames.join(", ")}`
+                                    : null
+                                )
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                          )}
+                          {item.note && <p className="text-xs">Nota: {item.note}</p>}
+                        </div>
                       ))}
                     </div>
                   </article>
