@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
 
 import { auth } from "@/lib/firebase/config";
+import { subscribeBranches, subscribeBranding } from "@/lib/services/menu";
 import type { Branch, BrandingSettings, CartItem, UserRole } from "@/types";
 
 type AppStateValue = {
@@ -18,6 +19,9 @@ type AppStateValue = {
   setBranch: (branch: Branch | null) => void;
   setBranding: (branding: BrandingSettings) => void;
   addToCart: (item: CartItem) => void;
+  replaceCartItem: (item: CartItem) => void;
+  updateCartItemQuantity: (itemId: string, quantity: number) => void;
+  removeFromCart: (itemId: string) => void;
   clearCart: () => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -26,8 +30,22 @@ type AppStateValue = {
 const defaultBranding: BrandingSettings = {
   primaryRgb: "55 101 94",
   accentRgb: "180 140 92",
-  shape: "rounded"
+  shape: "rounded",
+  fontFamily: "serif"
 };
+
+const ACTIVE_BRANCH_STORAGE_KEY = "la-barra-branch";
+const CART_BRANCH_STORAGE_KEY = "la-barra-cart-branch";
+const cartStorageKey = (branchId: string) => `la-barra-cart:${branchId}`;
+
+function readStoredCart(branchId: string) {
+  try {
+    const stored = window.localStorage.getItem(cartStorageKey(branchId));
+    return stored ? (JSON.parse(stored) as CartItem[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 const AppStateContext = createContext<AppStateValue | null>(null);
 
@@ -36,16 +54,24 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   const [activeBranch, setActiveBranch] = useState<Branch | null>(null);
   const [branding, setBranding] = useState<BrandingSettings>(defaultBranding);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartBranchId, setCartBranchId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>("guest");
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    const storedBranch = window.localStorage.getItem("la-barra-branch");
+    const storedBranch = window.localStorage.getItem(ACTIVE_BRANCH_STORAGE_KEY);
     if (storedBranch) {
       setActiveBranch(JSON.parse(storedBranch) as Branch);
     }
+
+    const storedCartBranchId = window.localStorage.getItem(CART_BRANCH_STORAGE_KEY);
+    if (storedCartBranchId) {
+      setCartBranchId(storedCartBranchId);
+    }
   }, []);
+
+  useEffect(() => subscribeBranches(setBranches), []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -60,9 +86,39 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!activeBranch) return;
-    window.localStorage.setItem("la-barra-branch", JSON.stringify(activeBranch));
-    setCart([]);
+
+    window.localStorage.setItem(ACTIVE_BRANCH_STORAGE_KEY, JSON.stringify(activeBranch));
+    setCartBranchId(activeBranch.id);
+    setCart(readStoredCart(activeBranch.id));
   }, [activeBranch?.id]);
+
+  useEffect(() => {
+    if (!activeBranch) {
+      setBranding(defaultBranding);
+      return;
+    }
+
+    return subscribeBranding(activeBranch.id, (settings) => {
+      setBranding(settings ? { ...defaultBranding, ...settings } : defaultBranding);
+    });
+  }, [activeBranch?.id]);
+
+  useEffect(() => {
+    if (!activeBranch || !branches.length) return;
+
+    const freshBranch = branches.find((branch) => branch.id === activeBranch.id);
+    if (!freshBranch) return;
+
+    if (JSON.stringify(freshBranch) !== JSON.stringify(activeBranch)) {
+      setActiveBranch(freshBranch);
+    }
+  }, [activeBranch, branches]);
+
+  useEffect(() => {
+    if (!cartBranchId) return;
+    window.localStorage.setItem(CART_BRANCH_STORAGE_KEY, cartBranchId);
+    window.localStorage.setItem(cartStorageKey(cartBranchId), JSON.stringify(cart));
+  }, [cart, cartBranchId]);
 
   useEffect(() => {
     if (activeBranch || !branches.length) return;
@@ -74,9 +130,27 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     const root = document.documentElement;
     root.style.setProperty("--brand", branding.primaryRgb);
     root.style.setProperty("--accent", branding.accentRgb);
-    root.style.setProperty("--radius-card", branding.shape === "rounded" ? "1.5rem" : "0.375rem");
-    root.style.setProperty("--radius-shell", branding.shape === "rounded" ? "2rem" : "0.5rem");
+    root.style.setProperty(
+      "--radius-card",
+      branding.shape === "pill" ? "999px" : branding.shape === "rounded" ? "1.5rem" : "0.375rem"
+    );
+    root.style.setProperty(
+      "--radius-shell",
+      branding.shape === "pill" ? "2rem" : branding.shape === "rounded" ? "2rem" : "0.5rem"
+    );
+    root.style.setProperty(
+      "--app-font",
+      branding.fontFamily === "sans"
+        ? '"Inter", "Segoe UI", Helvetica, Arial, sans-serif'
+        : '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif'
+    );
   }, [branding]);
+
+  useEffect(() => {
+    if (cart.length > 0 && activeBranch && cartBranchId && cartBranchId !== activeBranch.id) {
+      setCart([]);
+    }
+  }, [activeBranch?.id, cart.length, cartBranchId]);
 
   const value = useMemo<AppStateValue>(
     () => ({
@@ -91,6 +165,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       setBranch: (branch) => setActiveBranch(branch),
       setBranding,
       addToCart: (item) => {
+        if (!activeBranch) return;
+
+        setCartBranchId(activeBranch.id);
         setCart((current) => {
           const found = current.find((entry) => entry.id === item.id);
           if (!found) return [...current, item];
@@ -100,6 +177,25 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
               : entry
           );
         });
+      },
+      replaceCartItem: (item) => {
+        setCart((current) =>
+          current.map((entry) => (entry.id === item.id ? item : entry))
+        );
+      },
+      updateCartItemQuantity: (itemId, quantity) => {
+        setCart((current) => {
+          if (quantity <= 0) {
+            return current.filter((entry) => entry.id !== itemId);
+          }
+
+          return current.map((entry) =>
+            entry.id === itemId ? { ...entry, quantity } : entry
+          );
+        });
+      },
+      removeFromCart: (itemId) => {
+        setCart((current) => current.filter((entry) => entry.id !== itemId));
       },
       clearCart: () => setCart([]),
       login: async (email, password) => {

@@ -60,11 +60,16 @@ export type CartItem = {
   productId: string;
   name: string;
   quantity: number;
+  basePrice?: number;
   unitPrice: number;
+  imageUrl?: string;
   note?: string;
   selectedModifiers: {
     modifierId: string;
+    modifierName?: string;
     optionIds: string[];
+    optionNames?: string[];
+    priceDelta?: number;
   }[];
 };
 
@@ -84,7 +89,9 @@ export type Order = {
 export type BrandingSettings = {
   primaryRgb: string;
   accentRgb: string;
-  shape: "rounded" | "square";
+  shape: "rounded" | "square" | "pill";
+  fontFamily?: string;
+  logoUrl?: string;
 };
 
 export type UserRole = "guest" | "admin";

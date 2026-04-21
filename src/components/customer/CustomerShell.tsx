@@ -1,7 +1,20 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { MoonStar, Search, ShoppingBag, SunMedium } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  Minus,
+  MoonStar,
+  Plus,
+  Search,
+  ShoppingBag,
+  Store,
+  SunMedium,
+  Trash2,
+  X
+} from "lucide-react";
 
 import { MenuCard } from "@/components/customer/MenuCard";
 import { useAppState } from "@/components/providers/AppProviders";
@@ -9,83 +22,365 @@ import { useTheme } from "@/components/providers/ThemeProvider";
 import { useRealtimeMenu } from "@/lib/hooks/useRealtimeMenu";
 import { createOrder } from "@/lib/services/menu";
 import { currency } from "@/lib/utils";
-import type { Product } from "@/types";
+import type { CartItem, Product } from "@/types";
+
+type ModifierSelectionMap = Record<string, string[]>;
+
+function createModifierMap(item?: CartItem) {
+  return Object.fromEntries(
+    (item?.selectedModifiers ?? []).map((modifier) => [modifier.modifierId, modifier.optionIds])
+  ) as ModifierSelectionMap;
+}
 
 export function CustomerShell() {
-  const { activeBranch, cart, addToCart, clearCart } = useAppState();
+  const {
+    activeBranch,
+    branches,
+    branding,
+    cart,
+    setBranch,
+    addToCart,
+    replaceCartItem,
+    updateCartItemQuantity,
+    removeFromCart,
+    clearCart
+  } = useAppState();
   const { theme, toggleTheme } = useTheme();
   const { categories, products } = useRealtimeMenu(activeBranch?.id);
   const [search, setSearch] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [customerName, setCustomerName] = useState("");
+  const [cartOpen, setCartOpen] = useState(false);
+  const [branchPickerOpen, setBranchPickerOpen] = useState(false);
+  const [editingCartItemId, setEditingCartItemId] = useState<string | null>(null);
+  const [editorSelections, setEditorSelections] = useState<ModifierSelectionMap>({});
+  const [editorNote, setEditorNote] = useState("");
+  const [editorQuantity, setEditorQuantity] = useState(1);
+  const [editorError, setEditorError] = useState("");
 
   useEffect(() => {
-    setSelectedProduct(null);
+    const shouldLock = cartOpen || branchPickerOpen || Boolean(editingCartItemId);
+    const previousOverflow = document.body.style.overflow;
+
+    if (shouldLock) {
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [branchPickerOpen, cartOpen, editingCartItemId]);
+
+  useEffect(() => {
+    if (!cart.length) {
+      setCartOpen(false);
+      setEditingCartItemId(null);
+    }
+  }, [cart.length]);
+
+  useEffect(() => {
+    setEditingCartItemId(null);
+    setCartOpen(false);
+    setBranchPickerOpen(false);
   }, [activeBranch?.id]);
 
   const filteredProducts = useMemo(() => {
-    const term = search.toLowerCase();
-    return products.filter(
-      (product) =>
-        product.available &&
-        (product.name.toLowerCase().includes(term) ||
-          product.description.toLowerCase().includes(term))
-    );
+    const term = search.trim().toLowerCase();
+
+    return products.filter((product) => {
+      if (!product.available) return false;
+      if (!term) return true;
+
+      return (
+        product.name.toLowerCase().includes(term) ||
+        product.description.toLowerCase().includes(term)
+      );
+    });
   }, [products, search]);
 
-  const total = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const cartItemsCount = useMemo(
+    () => cart.reduce((sum, item) => sum + item.quantity, 0),
+    [cart]
+  );
+  const cartTotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
+    [cart]
+  );
+
+  const editingCartItem = useMemo(
+    () => cart.find((item) => item.id === editingCartItemId) ?? null,
+    [cart, editingCartItemId]
+  );
+  const editingProduct = useMemo(
+    () =>
+      editingCartItem
+        ? products.find((product) => product.id === editingCartItem.productId) ?? null
+        : null,
+    [editingCartItem, products]
+  );
+
+  const editorSelectionsDetail = useMemo(() => {
+    if (!editingProduct) return [];
+
+    return editingProduct.modifiers.map((modifier) => {
+      const selectedIds = editorSelections[modifier.id] ?? [];
+      const options = modifier.options.filter((option) => selectedIds.includes(option.id));
+
+      return {
+        modifierId: modifier.id,
+        modifierName: modifier.name,
+        required: modifier.required,
+        type: modifier.type,
+        optionIds: selectedIds,
+        optionNames: options.map((option) => option.name),
+        priceDelta: options.reduce((sum, option) => sum + option.priceDelta, 0)
+      };
+    });
+  }, [editingProduct, editorSelections]);
+
+  const editorBasePrice = editingProduct ? editingProduct.salePrice || editingProduct.price : 0;
+  const editorExtrasTotal = editorSelectionsDetail.reduce(
+    (sum, modifier) => sum + modifier.priceDelta,
+    0
+  );
+  const editorUnitPrice = editorBasePrice + editorExtrasTotal;
+  const editorTotal = editorUnitPrice * editorQuantity;
+
+  useEffect(() => {
+    if (!editingCartItem) return;
+
+    setEditorSelections(createModifierMap(editingCartItem));
+    setEditorNote(editingCartItem.note ?? "");
+    setEditorQuantity(editingCartItem.quantity);
+    setEditorError("");
+  }, [editingCartItemId, editingCartItem]);
+
+  function handleAddProduct(product: Product) {
+    if (!activeBranch) return;
+
+    const basePrice = product.salePrice || product.price;
+    const item: CartItem = {
+      id: crypto.randomUUID(),
+      productId: product.id,
+      name: product.name,
+      quantity: 1,
+      basePrice,
+      unitPrice: basePrice,
+      imageUrl: product.imageUrl,
+      selectedModifiers: []
+    };
+
+    addToCart(item);
+    setCartOpen(true);
+    setEditingCartItemId(item.id);
+  }
+
+  function toggleEditorOption(
+    modifierId: string,
+    optionId: string,
+    type: "single" | "multiple"
+  ) {
+    setEditorError("");
+    setEditorSelections((current) => {
+      const selected = current[modifierId] ?? [];
+
+      if (type === "single") {
+        return { ...current, [modifierId]: [optionId] };
+      }
+
+      const next = selected.includes(optionId)
+        ? selected.filter((id) => id !== optionId)
+        : [...selected, optionId];
+
+      return { ...current, [modifierId]: next };
+    });
+  }
+
+  function openCartEditor(itemId: string) {
+    setCartOpen(true);
+    setEditingCartItemId(itemId);
+  }
+
+  function closeEditor() {
+    setEditingCartItemId(null);
+    setEditorError("");
+  }
+
+  function saveCartItemChanges() {
+    if (!editingCartItem || !editingProduct) return;
+
+    const missingRequired = editingProduct.modifiers.find((modifier) => {
+      if (!modifier.required) return false;
+      return !(editorSelections[modifier.id] ?? []).length;
+    });
+
+    if (missingRequired) {
+      setEditorError(`Selecciona una opción en ${missingRequired.name}.`);
+      return;
+    }
+
+    replaceCartItem({
+      ...editingCartItem,
+      quantity: editorQuantity,
+      note: editorNote.trim() || undefined,
+      basePrice: editorBasePrice,
+      unitPrice: editorUnitPrice,
+      selectedModifiers: editorSelectionsDetail
+        .filter((modifier) => modifier.optionIds.length)
+        .map((modifier) => ({
+          modifierId: modifier.modifierId,
+          modifierName: modifier.modifierName,
+          optionIds: modifier.optionIds,
+          optionNames: modifier.optionNames,
+          priceDelta: modifier.priceDelta
+        }))
+    });
+
+    closeEditor();
+  }
 
   async function submitOrder() {
-    if (!activeBranch || !cart.length || !customerName) return;
-    await createOrder(activeBranch.id, cart, customerName);
+    if (!activeBranch || !activeBranch.isOpen || !cart.length || !customerName.trim()) return;
+
+    const invalidItem = cart.find((item) => {
+      const product = products.find((productEntry) => productEntry.id === item.productId);
+      if (!product) return false;
+
+      return product.modifiers.some(
+        (modifier) =>
+          modifier.required &&
+          !(item.selectedModifiers.find((selected) => selected.modifierId === modifier.id)?.optionIds
+            .length ?? 0)
+      );
+    });
+
+    if (invalidItem) {
+      setCartOpen(true);
+      setEditingCartItemId(invalidItem.id);
+      setEditorError("Completa las personalizaciones obligatorias antes de enviar.");
+      return;
+    }
+
+    await createOrder(activeBranch.id, cart, customerName.trim());
     clearCart();
     setCustomerName("");
+    closeEditor();
   }
 
   if (!activeBranch) {
     return (
       <div className="rounded-shell border border-dashed border-line bg-panel p-6 text-sm text-muted">
-        Selecciona una sucursal para cargar el menu.
+        Selecciona una sucursal para cargar el menú.
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <header className="rounded-shell border border-line bg-panel p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm uppercase tracking-[0.25em] text-brand">Menu en vivo</p>
-            <h1 className="mt-2 text-3xl font-semibold text-text">{activeBranch.name}</h1>
+    <div className="space-y-6 pb-28">
+      <header className="overflow-hidden rounded-shell border border-line bg-panel">
+        <div
+          className="relative p-5 md:p-6"
+          style={{
+            backgroundImage: activeBranch.menuCoverImageUrl
+              ? `linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.45)), url(${activeBranch.menuCoverImageUrl})`
+              : "linear-gradient(135deg, rgb(var(--brand) / 0.88), rgb(var(--accent) / 0.72))",
+            backgroundSize: "cover",
+            backgroundPosition: "center"
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-brand/10 via-transparent to-accent/15" />
+          <div className="relative space-y-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  {branding.logoUrl ? (
+                    <div className="relative h-14 w-14 overflow-hidden rounded-full border border-white/20 bg-white/90 p-2 shadow-glow">
+                      <Image
+                        src={branding.logoUrl}
+                        alt="Logo"
+                        fill
+                        className="object-contain p-2"
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid h-14 w-14 place-items-center rounded-full bg-white/15 text-white backdrop-blur">
+                      <Store size={20} />
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.25em] text-brand">
+                      Menú ({activeBranch.name})
+                    </p>
+                    <h1 className="mt-2 text-3xl font-semibold text-white md:text-4xl">
+                      Pide a tu ritmo
+                    </h1>
+                    {activeBranch.address && (
+                      <p className="mt-2 max-w-2xl text-sm text-white/80">
+                        {activeBranch.address}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={[
+                      "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+                      activeBranch.isOpen
+                        ? "bg-success/20 text-white"
+                        : "bg-danger/20 text-white"
+                    ].join(" ")}
+                  >
+                    {activeBranch.isOpen ? "Sucursal abierta" : "Sucursal cerrada"}
+                  </span>
+                  {activeBranch.isPrimary && (
+                    <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                      Principal
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBranchPickerOpen(true)}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white backdrop-blur"
+                >
+                  Cambiar sucursal
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur"
+                  aria-label="Cambiar tema"
+                >
+                  {theme === "light" ? <MoonStar size={18} /> : <SunMedium size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-full border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
+              <div className="flex items-center gap-3">
+                <Search size={18} className="text-white/70" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar platillos, bebidas o algo antojable"
+                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/60"
+                />
+              </div>
+            </div>
           </div>
-
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="rounded-full border border-line bg-surface p-3 text-text"
-            aria-label="Cambiar tema"
-          >
-            {theme === "light" ? <MoonStar size={18} /> : <SunMedium size={18} />}
-          </button>
-        </div>
-
-        <div className="mt-5 flex items-center gap-3 rounded-full border border-line bg-surface px-4 py-3">
-          <Search size={18} className="text-muted" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar pasta, burgers o bebidas"
-            className="w-full bg-transparent text-sm text-text outline-none placeholder:text-muted"
-          />
         </div>
       </header>
 
-      <nav className="flex gap-3 overflow-x-auto pb-1">
+      <nav className="flex flex-wrap gap-2">
         {categories.map((category) => (
           <a
             key={category.id}
             href={`#category-${category.id}`}
-            className="whitespace-nowrap rounded-full border border-line bg-panel px-4 py-2 text-sm text-text"
+            className="inline-flex min-h-11 items-center rounded-full border border-line bg-panel px-4 py-3 text-sm font-semibold text-text transition hover:border-brand/40 hover:bg-brand/5"
           >
             {category.name}
           </a>
@@ -102,13 +397,16 @@ export function CustomerShell() {
 
           return (
             <section key={category.id} id={`category-${category.id}`} className="space-y-4">
-              <div>
+              <div className="flex items-center justify-between gap-3">
                 <h2 className="text-2xl font-semibold text-text">{category.name}</h2>
+                <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
+                  {sectionProducts.length} opciones
+                </span>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 {sectionProducts.map((product) => (
-                  <MenuCard key={product.id} product={product} onSelect={setSelectedProduct} />
+                  <MenuCard key={product.id} product={product} onSelect={handleAddProduct} />
                 ))}
               </div>
             </section>
@@ -116,90 +414,406 @@ export function CustomerShell() {
         })}
       </div>
 
-      {selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/50 p-4 md:items-center md:justify-center">
-          <div className="w-full max-w-lg rounded-shell bg-panel p-5">
-            <h3 className="text-xl font-semibold text-text">{selectedProduct.name}</h3>
-            <p className="mt-2 text-sm text-muted">{selectedProduct.description}</p>
-
-            <div className="mt-4 space-y-4">
-              {selectedProduct.modifiers.map((modifier) => (
-                <div key={modifier.id} className="rounded-card border border-line p-4">
-                  <p className="font-medium text-text">{modifier.name}</p>
-                  <div className="mt-3 space-y-2">
-                    {modifier.options.map((option) => (
-                      <label key={option.id} className="flex items-center justify-between text-sm text-text">
-                        <span>{option.name}</span>
-                        <span>{option.priceDelta ? `+${currency(option.priceDelta)}` : "Incluido"}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-5 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setSelectedProduct(null)}
-                className="flex-1 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
-              >
-                Cerrar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  addToCart({
-                    id: `${selectedProduct.id}-${Date.now()}`,
-                    productId: selectedProduct.id,
-                    name: selectedProduct.name,
-                    quantity: 1,
-                    unitPrice: selectedProduct.salePrice || selectedProduct.price,
-                    selectedModifiers: selectedProduct.modifiers.map((modifier) => ({
-                      modifierId: modifier.id,
-                      optionIds: modifier.options.slice(0, 1).map((option) => option.id)
-                    }))
-                  });
-                  setSelectedProduct(null);
-                }}
-                className="flex-1 rounded-full bg-brand px-4 py-3 text-sm font-semibold text-white"
-              >
-                Agregar {currency(selectedProduct.salePrice || selectedProduct.price)}
-              </button>
-            </div>
-          </div>
-        </div>
+      {!filteredProducts.length && (
+        <section className="rounded-shell border border-dashed border-line bg-panel p-6 text-sm text-muted">
+          No encontramos productos con esa búsqueda en esta sucursal.
+        </section>
       )}
 
-      <aside className="sticky bottom-4 z-40 rounded-shell border border-line bg-panel p-4 shadow-glow">
-        <div className="flex items-center justify-between gap-3">
+      {cart.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setCartOpen(true)}
+          className="fixed bottom-4 right-4 z-40 flex w-[calc(100%-2rem)] max-w-md items-center justify-between rounded-full border border-line bg-panel px-4 py-3 text-left shadow-glow md:w-auto md:min-w-[320px]"
+        >
           <div className="flex items-center gap-3">
             <div className="rounded-full bg-brand/10 p-3 text-brand">
               <ShoppingBag size={18} />
             </div>
             <div>
-              <p className="font-semibold text-text">Carrito flotante</p>
+              <p className="font-semibold text-text">Tu carrito</p>
               <p className="text-sm text-muted">
-                {cart.length} items · {currency(total)}
+                {cartItemsCount} items · {currency(cartTotal)}
               </p>
             </div>
           </div>
-          <input
-            value={customerName}
-            onChange={(event) => setCustomerName(event.target.value)}
-            placeholder="Nombre"
-            className="w-28 rounded-full border border-line bg-surface px-3 py-2 text-sm text-text outline-none md:w-40"
-          />
-          <button
-            type="button"
-            onClick={() => void submitOrder()}
-            disabled={!cart.length || !customerName}
-            className="rounded-full bg-brand px-4 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
-          >
-            Enviar pedido
-          </button>
+          <ChevronRight size={18} className="text-muted" />
+        </button>
+      )}
+
+      {branchPickerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 p-4 backdrop-blur-sm">
+          <div className="mx-auto flex h-full max-w-3xl items-end md:items-center">
+            <div className="w-full rounded-shell border border-line bg-panel p-5 shadow-glow md:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBranchPickerOpen(false)}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                >
+                  <ArrowLeft size={16} />
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBranchPickerOpen(false)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-text"
+                  aria-label="Cerrar selector de sucursal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="mt-5">
+                <p className="text-sm uppercase tracking-[0.25em] text-brand">Sucursales</p>
+                <h2 className="mt-2 text-2xl font-semibold text-text">
+                  Cambia sin salir del menú
+                </h2>
+                <p className="mt-2 text-sm text-muted">
+                  Tu carrito se mantiene separado por sucursal para que no se mezclen pedidos.
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                {branches.map((branch) => (
+                  <button
+                    key={branch.id}
+                    type="button"
+                    onClick={() => {
+                      setBranch(branch);
+                      setBranchPickerOpen(false);
+                    }}
+                    className={[
+                      "overflow-hidden rounded-shell border text-left transition",
+                      branch.id === activeBranch.id
+                        ? "border-brand bg-brand/10"
+                        : "border-line bg-surface hover:border-brand/40"
+                    ].join(" ")}
+                  >
+                    <div
+                      className="relative min-h-40 p-5"
+                      style={
+                        branch.coverImageUrl
+                          ? {
+                              backgroundImage: `linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.58)), url(${branch.coverImageUrl})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center"
+                            }
+                          : {
+                              background:
+                                "linear-gradient(135deg, rgb(var(--brand) / 0.16), rgb(var(--accent) / 0.18))"
+                            }
+                      }
+                    >
+                      <div className="flex h-full flex-col justify-between gap-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                            {branch.isOpen ? "Abierta" : "Cerrada"}
+                          </span>
+                          {branch.isPrimary && (
+                            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                              Principal
+                            </span>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-xl font-semibold text-white">{branch.name}</p>
+                          <p className="mt-2 text-sm text-white/80">{branch.address}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      </aside>
+      )}
+
+      {cartOpen && (
+        <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm">
+          <div className="ml-auto flex h-full w-full max-w-2xl items-end md:items-stretch">
+            <aside className="flex h-[88vh] w-full flex-col rounded-t-shell border border-line bg-panel shadow-glow md:h-full md:rounded-none md:rounded-l-shell">
+              <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+                <button
+                  type="button"
+                  onClick={() => setCartOpen(false)}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                >
+                  <ArrowLeft size={16} />
+                  Volver
+                </button>
+
+                <div className="text-right">
+                  <p className="font-semibold text-text">Tu pedido</p>
+                  <p className="text-sm text-muted">
+                    {cartItemsCount} items · {currency(cartTotal)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-5 py-5">
+                <div className="space-y-3">
+                  {cart.map((item) => (
+                    <article
+                      key={item.id}
+                      className="rounded-card border border-line bg-surface p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-text">{item.name}</p>
+                          {item.selectedModifiers.length > 0 && (
+                            <p className="mt-1 text-sm text-muted">
+                              {item.selectedModifiers
+                                .map((modifier) =>
+                                  modifier.optionNames?.length
+                                    ? `${modifier.modifierName}: ${modifier.optionNames.join(", ")}`
+                                    : null
+                                )
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                          )}
+                          {item.note && (
+                            <p className="mt-1 text-sm text-muted">Nota: {item.note}</p>
+                          )}
+                          <p className="mt-2 text-sm font-semibold text-brand">
+                            {currency(item.unitPrice)} c/u
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.id)}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+                          aria-label={`Eliminar ${item.name}`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateCartItemQuantity(item.id, item.quantity - 1)}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+                          >
+                            <Minus size={16} />
+                          </button>
+                          <span className="min-w-8 text-center font-semibold text-text">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateCartItemQuantity(item.id, item.quantity + 1)}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => openCartEditor(item.id)}
+                            className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                          >
+                            Editar
+                          </button>
+                          <p className="font-semibold text-text">
+                            {currency(item.unitPrice * item.quantity)}
+                          </p>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-line px-5 py-4">
+                <div className="flex flex-col gap-3">
+                  <input
+                    value={customerName}
+                    onChange={(event) => setCustomerName(event.target.value)}
+                    placeholder="Nombre para el pedido"
+                    className="min-h-11 rounded-full border border-line bg-surface px-4 py-3 text-sm text-text outline-none"
+                  />
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <button
+                      type="button"
+                      onClick={clearCart}
+                      className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                    >
+                      Vaciar carrito
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void submitOrder()}
+                      disabled={!customerName.trim() || !activeBranch.isOpen}
+                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
+                    >
+                      {activeBranch.isOpen
+                        ? `Enviar pedido ${currency(cartTotal)}`
+                        : "Sucursal cerrada"}
+                    </button>
+                  </div>
+
+                  {!activeBranch.isOpen && (
+                    <p className="text-sm font-medium text-danger">
+                      Esta sucursal está cerrada. Puedes revisar tu carrito, pero no enviarlo.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      )}
+
+      {editingCartItem && editingProduct && (
+        <div className="fixed inset-0 z-[60] bg-black/55 p-4 backdrop-blur-sm">
+          <div className="mx-auto flex h-full max-w-2xl items-end md:items-center">
+            <div className="w-full rounded-shell border border-line bg-panel p-5 shadow-glow md:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={closeEditor}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                >
+                  <ArrowLeft size={16} />
+                  Volver al carrito
+                </button>
+                <button
+                  type="button"
+                  onClick={closeEditor}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-text"
+                  aria-label="Cerrar edición del producto"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="mt-5">
+                <h3 className="text-2xl font-semibold text-text">{editingProduct.name}</h3>
+                <p className="mt-2 text-sm text-muted">{editingProduct.description}</p>
+                <p className="mt-3 text-sm font-semibold text-brand">
+                  Base {currency(editorBasePrice)}
+                </p>
+              </div>
+
+              <div className="mt-5 max-h-[55vh] space-y-4 overflow-y-auto pr-1">
+                {editingProduct.modifiers.map((modifier) => (
+                  <div key={modifier.id} className="rounded-card border border-line p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium text-text">{modifier.name}</p>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                        {modifier.required ? "Obligatorio" : "Opcional"} ·{" "}
+                        {modifier.type === "single" ? "Una opción" : "Múltiples"}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      {modifier.options.map((option) => (
+                        <label
+                          key={option.id}
+                          className="flex items-center justify-between gap-3 rounded-card border border-line px-3 py-3 text-sm text-text"
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type={modifier.type === "single" ? "radio" : "checkbox"}
+                              name={`modifier-${modifier.id}`}
+                              checked={(editorSelections[modifier.id] ?? []).includes(option.id)}
+                              onChange={() =>
+                                toggleEditorOption(modifier.id, option.id, modifier.type)
+                              }
+                              className="h-4 w-4 accent-[rgb(var(--brand))]"
+                            />
+                            <span>{option.name}</span>
+                          </div>
+                          <span>
+                            {option.priceDelta ? `+${currency(option.priceDelta)}` : "Incluido"}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <div className="rounded-card border border-line p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-medium text-text">Cantidad</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditorQuantity((current) => Math.max(1, current - 1))}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="min-w-8 text-center font-semibold text-text">
+                        {editorQuantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setEditorQuantity((current) => current + 1)}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <label className="mt-4 block">
+                    <span className="text-sm font-medium text-text">Nota para el restaurante</span>
+                    <textarea
+                      value={editorNote}
+                      onChange={(event) => setEditorNote(event.target.value)}
+                      rows={3}
+                      placeholder="Salsa aparte, sin cebolla, término, etc."
+                      className="mt-2 w-full rounded-card border border-line bg-surface px-4 py-3 text-sm text-text outline-none placeholder:text-muted"
+                    />
+                  </label>
+
+                  <div className="mt-4 rounded-card bg-surface px-4 py-3 text-sm text-text">
+                    <div className="flex items-center justify-between">
+                      <span>Extras</span>
+                      <span>{currency(editorExtrasTotal)}</span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between font-semibold">
+                      <span>Total</span>
+                      <span>{currency(editorTotal)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {editorError && (
+                <p className="mt-4 text-sm font-medium text-danger">{editorError}</p>
+              )}
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={closeEditor}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                >
+                  Regresar
+                </button>
+                <button
+                  type="button"
+                  onClick={saveCartItemChanges}
+                  className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white"
+                >
+                  Guardar cambios {currency(editorTotal)}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

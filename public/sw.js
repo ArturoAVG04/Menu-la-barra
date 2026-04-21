@@ -1,5 +1,19 @@
-const CACHE_NAME = "la-barra-shell-v1";
-const APP_SHELL = ["/", "/customer", "/login", "/manifest.json"];
+const CACHE_NAME = "la-barra-shell-v2";
+const APP_SHELL = ["/", "/customer", "/login", "/manifest.json", "/icon.svg"];
+
+function isNavigationRequest(request) {
+  return request.mode === "navigate";
+}
+
+function isCacheableAsset(requestUrl) {
+  return (
+    requestUrl.origin === self.location.origin &&
+    (requestUrl.pathname.startsWith("/_next/static/") ||
+      requestUrl.pathname.startsWith("/icons/") ||
+      requestUrl.pathname === "/manifest.json" ||
+      requestUrl.pathname === "/icon.svg")
+  );
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -23,6 +37,25 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  const requestUrl = new URL(event.request.url);
+
+  if (isNavigationRequest(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put("/", copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/")))
+    );
+    return;
+  }
+
+  if (!isCacheableAsset(requestUrl)) {
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cached) => {

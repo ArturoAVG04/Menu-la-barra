@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 
 import { MenuCard } from "@/components/customer/MenuCard";
 import { useAppState } from "@/components/providers/AppProviders";
 import { useRealtimeMenu } from "@/lib/hooks/useRealtimeMenu";
-import { subscribeBranches } from "@/lib/services/menu";
 import type { Branch, Product } from "@/types";
 
 function getPreviewBranch(branches: Branch[], activeBranch: Branch | null) {
@@ -15,11 +14,7 @@ function getPreviewBranch(branches: Branch[], activeBranch: Branch | null) {
 }
 
 export default function HomePage() {
-  const { branches, activeBranch, setBranch, setBranches } = useAppState();
-
-  useEffect(() => {
-    return subscribeBranches(setBranches);
-  }, [setBranches]);
+  const { branches, activeBranch, setBranch } = useAppState();
 
   const previewBranch = useMemo(
     () => getPreviewBranch(branches, activeBranch),

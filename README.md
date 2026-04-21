@@ -48,6 +48,8 @@ src/
 4. Ejecuta `npm run dev`.
 5. Abre `http://localhost:3000`.
 
+Si quieres abrirlo desde otro dispositivo en la misma red local, usa `npm run dev:network` y entra desde `http://TU_IP_LOCAL:3000`.
+
 ## Probar localmente
 
 `Live Server` no es la forma correcta de probar este proyecto porque solo sirve archivos estaticos y esta app depende de Next.js, rutas de aplicacion y React.
@@ -75,6 +77,15 @@ Si quieres una experiencia similar a recarga automatica, `npm run dev` ya reempl
 3. Vercel detectara `Next.js` automaticamente.
 4. En la seccion de Environment Variables agrega las variables de `.env.example`.
 5. Despliega.
+
+Checklist rapido para que Vercel refleje tus avances en otros dispositivos:
+
+1. Confirma que estas trabajando en la raiz del repo y no dentro de `Menu-la-barra/`, porque en este proyecto existe una copia duplicada y Vercel podria terminar apuntando al directorio equivocado si se configura mal.
+2. Haz `git status` antes de subir para verificar que los cambios correctos estan en la raiz.
+3. Sube tus cambios con `git add .`, `git commit -m "mensaje"` y `git push origin main`.
+4. En Vercel revisa que el `Root Directory` del proyecto sea la raiz del repositorio.
+5. Verifica que todas las variables de `.env.example` tambien existan en Vercel.
+6. Si la app tarda en reflejar cambios en un dispositivo, borra el sitio instalado o limpia los datos del navegador, porque el `service worker` puede mantener cache de la version anterior.
 
 Archivo incluido:
 

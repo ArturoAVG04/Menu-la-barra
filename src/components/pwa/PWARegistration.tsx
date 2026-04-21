@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { getToken } from "firebase/messaging";
 
-import { getMessagingClient } from "@/lib/firebase/config";
+import { getFirebaseVapidKey, getMessagingClient } from "@/lib/firebase/config";
 
 export function PWARegistration() {
   useEffect(() => {
@@ -37,12 +37,17 @@ export function PWARegistration() {
   useEffect(() => {
     async function requestNotifications() {
       const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+      const vapidKey = getFirebaseVapidKey();
+
+      if (!vapidKey || typeof Notification === "undefined") {
+        return;
+      }
 
       if (Notification.permission === "granted") {
         const messaging = await getMessagingClient();
         if (!messaging) return;
         await getToken(messaging, {
-          vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
+          vapidKey
         }).catch(() => undefined);
         return;
       }

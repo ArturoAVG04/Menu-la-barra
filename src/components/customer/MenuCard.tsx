@@ -46,7 +46,7 @@ export function MenuCard({ product, onSelect }: MenuCardProps) {
           className="flex w-full items-center justify-center gap-2 rounded-full bg-brand px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
         >
           <Plus size={16} />
-          Personalizar
+          Agregar
         </button>
       </div>
     </article>
