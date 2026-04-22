@@ -11,12 +11,20 @@ export type Branch = {
     extraItemStep: number;
     extraMinutesPerStep: number;
   };
-  weeklyHours?: {
-    day: string;
-    enabled: boolean;
-    open: string;
-    close: string;
-  }[];
+  weeklyHours?: (
+    | {
+        day: string;
+        enabled: boolean;
+        open: string;
+        close: string;
+      }
+    | {
+        days: string[];
+        open: string;
+        close: string;
+        allDay?: boolean;
+      }
+  )[];
   coverImageUrl?: string;
   menuCoverImageUrl?: string;
   isOpen: boolean;

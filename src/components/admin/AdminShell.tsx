@@ -27,17 +27,14 @@ import {
   subscribeOrders,
   updateOrderStatus
 } from "@/lib/services/menu";
+import {
+  WEEK_DAYS,
+  defaultWeeklyHours,
+  isBranchOpenAt,
+  normalizeWeeklyHours,
+  type NormalizedWeeklyHoursSlot
+} from "@/lib/branchHours";
 import type { Branch, Order } from "@/types";
-
-const weekDays = [
-  { id: "monday", label: "Lunes" },
-  { id: "tuesday", label: "Martes" },
-  { id: "wednesday", label: "Miércoles" },
-  { id: "thursday", label: "Jueves" },
-  { id: "friday", label: "Viernes" },
-  { id: "saturday", label: "Sábado" },
-  { id: "sunday", label: "Domingo" }
-] as const;
 
 const initialBranchDraft = {
   name: "",
@@ -58,12 +55,7 @@ function defaultOrderSettings() {
 }
 
 function defaultSchedule() {
-  return weekDays.map((day) => ({
-    day: day.label,
-    enabled: day.id !== "sunday",
-    open: "13:00",
-    close: "22:00"
-  }));
+  return defaultWeeklyHours();
 }
 
 function getEstimatedMinutes(branch: Branch, order: Order) {
@@ -100,6 +92,7 @@ export function AdminShell() {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [showCreateBranch, setShowCreateBranch] = useState(false);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [currentTimestamp, setCurrentTimestamp] = useState(() => Date.now());
 
   const selectedBranch = useMemo(
     () => branches.find((branch) => branch.id === adminBranchId) ?? null,
@@ -130,8 +123,17 @@ export function AdminShell() {
   }, [branches]);
 
   useEffect(() => {
-    setBranchEditor(selectedBranch ? { ...selectedBranch } : null);
+    setBranchEditor(
+      selectedBranch
+        ? { ...selectedBranch, weeklyHours: normalizeWeeklyHours(selectedBranch.weeklyHours) }
+        : null
+    );
   }, [selectedBranch]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setCurrentTimestamp(Date.now()), 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     if (!selectedBranch || !currentUser) {
@@ -241,6 +243,57 @@ export function AdminShell() {
       statusMessage: "Pedido entregado"
     });
     notify("Pedido entregado");
+  }
+
+  function updateScheduleSlot(
+    slotIndex: number,
+    updater: (slot: NormalizedWeeklyHoursSlot) => NormalizedWeeklyHoursSlot
+  ) {
+    setBranchEditor((current) =>
+      current
+        ? {
+            ...current,
+            weeklyHours: normalizeWeeklyHours(current.weeklyHours).map((slot, index) =>
+              index === slotIndex ? updater(slot) : slot
+            )
+          }
+        : current
+    );
+  }
+
+  function toggleScheduleDay(slotIndex: number, dayLabel: string) {
+    updateScheduleSlot(slotIndex, (slot) => {
+      const hasDay = slot.days.includes(dayLabel);
+      const nextDays = hasDay
+        ? slot.days.filter((day) => day !== dayLabel)
+        : [...slot.days, dayLabel];
+
+      return { ...slot, days: nextDays };
+    });
+  }
+
+  function addScheduleSlot() {
+    setBranchEditor((current) =>
+      current
+        ? {
+            ...current,
+            weeklyHours: [...normalizeWeeklyHours(current.weeklyHours), { days: [], open: "13:00", close: "22:00" }]
+          }
+        : current
+    );
+  }
+
+  function removeScheduleSlot(slotIndex: number) {
+    setBranchEditor((current) => {
+      if (!current) return current;
+
+      const nextSlots = normalizeWeeklyHours(current.weeklyHours).filter((_, index) => index !== slotIndex);
+
+      return {
+        ...current,
+        weeklyHours: nextSlots.length ? nextSlots : defaultSchedule()
+      };
+    });
   }
 
   function renderSidebar() {
@@ -405,7 +458,7 @@ export function AdminShell() {
                 <span className="hidden sm:inline">{theme === "dark" ? "Claro" : "Oscuro"}</span>
               </button>
               <a
-                href="/menu"
+                href="/"
                 className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-line bg-surface px-4 py-3 text-sm font-semibold text-text"
               >
                 Ver menú
@@ -463,10 +516,12 @@ export function AdminShell() {
                             <span
                               className={[
                                 "rounded-full px-3 py-1 text-xs font-semibold",
-                                branch.isOpen ? "bg-success/15 text-success" : "bg-danger/15 text-danger"
+                                isBranchOpenAt(branch, new Date(currentTimestamp))
+                                  ? "bg-success/15 text-success"
+                                  : "bg-danger/15 text-danger"
                               ].join(" ")}
                             >
-                              {branch.isOpen ? "Abierta" : "Cerrada"}
+                              {isBranchOpenAt(branch, new Date(currentTimestamp)) ? "Abierta" : "Cerrada"}
                             </span>
                             <button
                               type="button"
@@ -686,82 +741,111 @@ export function AdminShell() {
                   <div className="space-y-3">
                     <h3 className="text-lg font-semibold text-text">Horarios</h3>
                     <div className="space-y-3">
-                      {(branchEditor.weeklyHours || defaultSchedule()).map((item, index) => (
+                      {normalizeWeeklyHours(branchEditor.weeklyHours).map((slot, index) => (
                         <div
-                          key={`${item.day}-${index}`}
-                          className="flex flex-wrap items-center gap-4 rounded-card border border-line bg-surface p-3"
+                          key={`schedule-slot-${index}`}
+                          className="space-y-4 rounded-card border border-line bg-surface p-4"
                         >
-                          <label className="flex min-h-[44px] flex-1 items-center gap-3 text-sm font-medium text-text">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-text">Bloque {index + 1}</p>
+                              <p className="text-xs text-muted">
+                                Elige los días que comparten este horario.
+                              </p>
+                            </div>
+                            {normalizeWeeklyHours(branchEditor.weeklyHours).length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeScheduleSlot(index)}
+                                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-danger/30 px-4 py-2 text-sm font-semibold text-danger"
+                              >
+                                <Trash2 size={16} />
+                                Borrar
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
+                            {WEEK_DAYS.map((day) => {
+                              const selected = slot.days.includes(day.label);
+
+                              return (
+                                <button
+                                  key={`${index}-${day.id}`}
+                                  type="button"
+                                  onClick={() => toggleScheduleDay(index, day.label)}
+                                  className={[
+                                    "inline-flex min-h-[44px] items-center justify-center rounded-card border px-3 py-3 text-sm font-semibold transition",
+                                    selected
+                                      ? "border-brand bg-brand text-white"
+                                      : "border-line bg-panel text-text hover:border-brand/40"
+                                  ].join(" ")}
+                                >
+                                  {day.shortLabel}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <label className="space-y-2 text-sm text-text">
+                              <span>Hora de inicio</span>
+                              <input
+                                type="time"
+                                value={slot.allDay ? "00:00" : slot.open}
+                                disabled={slot.allDay}
+                                onChange={(event) =>
+                                  updateScheduleSlot(index, (current) => ({
+                                    ...current,
+                                    open: event.target.value
+                                  }))
+                                }
+                                className="min-h-11 w-full rounded-card border border-line bg-panel px-4 py-3 outline-none disabled:opacity-50"
+                              />
+                            </label>
+                            <label className="space-y-2 text-sm text-text">
+                              <span>Hora de finalización</span>
+                              <input
+                                type="time"
+                                value={slot.allDay ? "23:59" : slot.close}
+                                disabled={slot.allDay}
+                                onChange={(event) =>
+                                  updateScheduleSlot(index, (current) => ({
+                                    ...current,
+                                    close: event.target.value
+                                  }))
+                                }
+                                className="min-h-11 w-full rounded-card border border-line bg-panel px-4 py-3 outline-none disabled:opacity-50"
+                              />
+                            </label>
+                          </div>
+
+                          <label className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-panel px-4 py-3 text-center text-sm text-text">
                             <input
                               type="checkbox"
-                              checked={item.enabled}
+                              checked={slot.allDay || false}
                               onChange={(event) =>
-                                setBranchEditor((current) =>
-                                  current
-                                    ? {
-                                        ...current,
-                                        weeklyHours: (current.weeklyHours || defaultSchedule()).map(
-                                          (hourItem, hourIndex) =>
-                                            hourIndex === index
-                                              ? { ...hourItem, enabled: event.target.checked }
-                                              : hourItem
-                                        )
-                                      }
-                                    : current
-                                )
+                                updateScheduleSlot(index, (current) => ({
+                                  ...current,
+                                  allDay: event.target.checked,
+                                  open: event.target.checked ? "00:00" : current.open,
+                                  close: event.target.checked ? "23:59" : current.close
+                                }))
                               }
                             />
-                            {item.day}
+                            Abierto las 24 horas
                           </label>
-                          
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="time"
-                              value={item.open}
-                              disabled={!item.enabled}
-                              onChange={(event) =>
-                                setBranchEditor((current) =>
-                                  current
-                                    ? {
-                                        ...current,
-                                        weeklyHours: (current.weeklyHours || defaultSchedule()).map(
-                                          (hourItem, hourIndex) =>
-                                            hourIndex === index
-                                              ? { ...hourItem, open: event.target.value }
-                                              : hourItem
-                                        )
-                                      }
-                                    : current
-                                )
-                              }
-                              className="min-h-[44px] w-32 rounded-card border border-line bg-panel px-3 py-2 text-sm text-text outline-none disabled:opacity-50"
-                            />
-                            <span className="text-xs text-muted font-bold">A</span>
-                            <input
-                              type="time"
-                              value={item.close}
-                              disabled={!item.enabled}
-                              onChange={(event) =>
-                                setBranchEditor((current) =>
-                                  current
-                                    ? {
-                                        ...current,
-                                        weeklyHours: (current.weeklyHours || defaultSchedule()).map(
-                                          (hourItem, hourIndex) =>
-                                            hourIndex === index
-                                              ? { ...hourItem, close: event.target.value }
-                                              : hourItem
-                                        )
-                                      }
-                                    : current
-                                )
-                              }
-                              className="min-h-[44px] w-32 rounded-card border border-line bg-panel px-3 py-2 text-sm text-text outline-none disabled:opacity-50"
-                            />
-                          </div>
                         </div>
                       ))}
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={addScheduleSlot}
+                      className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-5 py-3 text-sm font-semibold text-text transition hover:bg-surface"
+                    >
+                      Agregar más días y horarios
+                    </button>
                   </div>
 
                   <button

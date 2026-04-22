@@ -1,5 +1,6 @@
 "use client";
 
+import { isBranchOpenAt } from "@/lib/branchHours";
 import type { Branch } from "@/types";
 
 type BranchSelectorProps = {
@@ -13,6 +14,8 @@ export function BranchSelector({
   selectedBranchId,
   onSelect
 }: BranchSelectorProps) {
+  const now = new Date();
+
   return (
     <section className="space-y-4 rounded-shell border border-line bg-panel p-5">
       <div>
@@ -47,10 +50,10 @@ export function BranchSelector({
                 <span
                   className={[
                     "rounded-full px-3 py-1 text-xs font-semibold",
-                    branch.isOpen ? "bg-success/15 text-success" : "bg-danger/15 text-danger"
+                    isBranchOpenAt(branch, now) ? "bg-success/15 text-success" : "bg-danger/15 text-danger"
                   ].join(" ")}
                 >
-                  {branch.isOpen ? "Abierta" : "Cerrada"}
+                  {isBranchOpenAt(branch, now) ? "Abierta" : "Cerrada"}
                 </span>
               </div>
             </div>

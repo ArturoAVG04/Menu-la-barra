@@ -25,6 +25,7 @@ import { MenuCard } from "@/components/customer/MenuCard";
 import { useAppState } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { useRealtimeMenu } from "@/lib/hooks/useRealtimeMenu";
+import { isBranchOpenAt } from "@/lib/branchHours";
 import { createOrder, subscribeOrder } from "@/lib/services/menu";
 import { currency } from "@/lib/utils";
 import type { Branch, CartItem, Order, Product } from "@/types";
@@ -40,16 +41,6 @@ const orderStatusLabels = {
   rejected: "Pedido rechazado",
   delivered: "Pedido entregado"
 } as const;
-const weekDayLabels = [
-  "Domingo",
-  "Lunes",
-  "Martes",
-  "Miércoles",
-  "Jueves",
-  "Viernes",
-  "Sábado"
-] as const;
-
 function createModifierMap(item?: CartItem) {
   return Object.fromEntries(
     (item?.selectedModifiers ?? []).map((modifier) => [modifier.modifierId, modifier.optionIds])
@@ -67,33 +58,6 @@ function getWhatsAppHref(value?: string) {
   if (!digits) return null;
 
   return `https://wa.me/${digits}`;
-}
-
-function parseTimeToMinutes(value: string) {
-  const [hours, minutes] = value.split(":").map(Number);
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
-  return hours * 60 + minutes;
-}
-
-function isBranchOpenNow(branch: Branch | null, currentDate: Date) {
-  if (!branch) return false;
-  if (!branch.isOpen) return false;
-  if (!branch.weeklyHours?.length) return branch.isOpen;
-
-  const todayLabel = weekDayLabels[currentDate.getDay()];
-  const todaySchedule = branch.weeklyHours.find((item) => item.day === todayLabel);
-  if (!todaySchedule?.enabled) return false;
-
-  const openMinutes = parseTimeToMinutes(todaySchedule.open);
-  const closeMinutes = parseTimeToMinutes(todaySchedule.close);
-  if (openMinutes === null || closeMinutes === null) return branch.isOpen;
-
-  const currentMinutes = currentDate.getHours() * 60 + currentDate.getMinutes();
-  if (closeMinutes <= openMinutes) {
-    return currentMinutes >= openMinutes || currentMinutes < closeMinutes;
-  }
-
-  return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
 }
 
 export function CustomerShell() {
@@ -570,7 +534,7 @@ export function CustomerShell() {
   }, [activeOrder, currentTimestamp]);
   const activeDateTime = useMemo(() => new Date(currentTimestamp), [currentTimestamp]);
   const activeBranchOpen = useMemo(
-    () => isBranchOpenNow(activeBranch, activeDateTime),
+    () => isBranchOpenAt(activeBranch, activeDateTime),
     [activeBranch, activeDateTime]
   );
 
@@ -876,7 +840,7 @@ export function CustomerShell() {
                         <div className="flex h-full flex-col justify-between gap-4">
                           <div className="flex items-center justify-between gap-3">
                             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-                              {isBranchOpenNow(branch, activeDateTime) ? "Abierta" : "Cerrada"}
+                              {isBranchOpenAt(branch, activeDateTime) ? "Abierta" : "Cerrada"}
                             </span>
                             {branch.isPrimary && (
                               <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
