@@ -43,16 +43,18 @@ const orderStatusLabels = {
   delivered: "Pedido entregado"
 } as const;
 
-const WhatsAppLogo = ({ className }: { className?: string }) => (
-  <svg 
-    viewBox="0 0 24 24" 
-    fill="currentColor" 
-    className={className}
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.328-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.13.57-.074 1.758-.463 2.006-1.114.248-.651.248-1.21.173-1.328-.074-.118-.272-.198-.57-.347zM12.003 21c-1.748 0-3.41-.459-4.869-1.32l-.35-.208-3.61.947 1.012-3.415-.228-.363A8.96 8.96 0 0 1 2.88 12c0-4.962 4.039-9 9.002-9 4.964 0 9.003 4.038 9.003 9s-4.039 9-9.002 9zM21 12c0-5.123-4.035-9.305-9-9.924V2c0-.552-.448-1-1-1h-2c-.552 0-1 .448-1 1v.076C3.965 2.695 0 6.877 0 12c0 2.213.799 4.245 2.124 5.819L.044 23.056c-.19.641.385 1.216 1.026 1.026l5.237-2.08A9.914 9.914 0 0 0 12 24c5.523 0 10-4.477 10-10 0-5.123-4.035-9.305-9-9.924" />
-  </svg>
-);
+function WhatsAppLogo({ className }: { className?: string }) {
+  return (
+    <svg 
+      viewBox="0 0 448 512" 
+      fill="currentColor" 
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-190.9 101.5-190.9 226.9 0 43.2 10.8 85.5 31.5 122.5L32 501.7l133.2-34.7c35.4 19.3 75.2 29.5 115.4 29.5 125.4 0 227.3-101.9 227.3-227.3.1-59.2-23-114.9-64.8-156.9zm-157 375.4c-36.6 0-72.5-9.8-103.6-28.4l-7.4-4.4-77.1 20.1 20.4-75.1-4.8-7.7c-20.4-32.4-31.2-70.1-31.2-108.9 0-113.8 102.3-195 210.6-195 54.3 0 105.3 21.2 143.6 59.5s59.5 89.5 59.5 143.8c0 113.8-102.4 195.1-210.6 195.1zm115.7-158.4c-6.3-3.1-37.5-18.5-43.3-20.6-5.8-2.1-10.1-3.1-14.3 3.1-4.2 6.3-16.4 20.6-20.1 24.8-3.7 4.2-7.4 4.8-13.7 1.6s-26.8-9.9-51-31.5c-18.8-16.8-31.6-37.6-35.3-43.9-3.7-6.3-.4-9.8 2.8-12.9 2.9-2.8 6.3-7.4 9.5-11.1 3.2-3.7 4.2-6.3 6.3-10.6 2.1-4.2 1.1-7.9-.5-11.1-1.6-3.1-14.3-34.4-19.5-46.6-5.1-12.2-10.7-10.5-14.3-10.5-3.1 0-7.4-.5-11.6-.5-4.2 0-11.1 1.6-17 7.9-5.8 6.3-22.2 21.7-22.2 52.9s22.8 61.3 25.9 65.6c3.2 4.2 44.9 34.3 108.8 61.8 15.2 6.5 27 10.4 36.3 13.1 15.6 4.9 29.8 4.2 41.1 2.5 12.6-1.9 37.5-15.3 42.8-30.1s5.3-27.5 3.7-30.1c-1.5-2.8-5.7-4.2-12.1-7.4z" />
+    </svg>
+  );
+}
 
 function createModifierMap(item?: CartItem) {
   return Object.fromEntries(
@@ -299,8 +301,8 @@ export function CustomerShell() {
   const editorSelectionsDetail = useMemo(() => {
     if (!editingProduct) return [];
 
-    return [...editingProduct.modifiers]
-      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    return [...(editingProduct.modifiers as any[])]
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
       .map((modifier) => {
       const selectedIds = editorSelections[modifier.id] ?? [];
       const options = modifier.options.filter((option) => selectedIds.includes(option.id));
@@ -1296,7 +1298,9 @@ export function CustomerShell() {
               </div>
 
               <div className="mt-5 space-y-4">
-                {editingProduct.modifiers.map((modifier) => (
+                {[...(editingProduct.modifiers as any[])]
+                  .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+                  .map((modifier) => (
                   <div key={modifier.id} className="rounded-card border border-line p-4">
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-medium text-text">{modifier.name}</p>

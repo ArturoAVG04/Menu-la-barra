@@ -803,7 +803,9 @@ export function AdminProductForm({
                     </div>
                     <div className="grid gap-3">
                       {modifiers.length ? (
-                        modifiers.map((modifier) => {
+                        [...modifiers]
+                          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                          .map((modifier) => {
                           const checked = selectedModifierIds.has(modifier.id);
                           return (
                             <label
