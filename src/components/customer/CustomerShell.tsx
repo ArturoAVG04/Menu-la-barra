@@ -6,9 +6,11 @@ import {
   ArrowLeft,
   ChevronRight,
   CheckCircle2,
+  Clock3,
   LoaderCircle,
   Minus,
   MoonStar,
+  PackageCheck,
   Plus,
   Search,
   ShoppingBag,
@@ -23,12 +25,20 @@ import { MenuCard } from "@/components/customer/MenuCard";
 import { useAppState } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { useRealtimeMenu } from "@/lib/hooks/useRealtimeMenu";
-import { createOrder } from "@/lib/services/menu";
+import { createOrder, subscribeOrder } from "@/lib/services/menu";
 import { currency } from "@/lib/utils";
-import type { CartItem, Product } from "@/types";
+import type { CartItem, Order, Product } from "@/types";
 
 type ModifierSelectionMap = Record<string, string[]>;
 const DEFAULT_WHATSAPP_LINK = "https://wa.me/message/JRC557CVY6LP1";
+const ACTIVE_ORDER_STORAGE_KEY = "la-barra-active-order";
+const orderStatusLabels = {
+  new: "Pendiente de confirmación",
+  preparing: "En cocina",
+  ready: "Listo para entrega",
+  rejected: "Pedido rechazado",
+  delivered: "Pedido entregado"
+} as const;
 
 function createModifierMap(item?: CartItem) {
   return Object.fromEntries(
@@ -75,6 +85,9 @@ export function CustomerShell() {
   const [editorError, setEditorError] = useState("");
   const [submitState, setSubmitState] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [submitMessage, setSubmitMessage] = useState("");
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  const [lastNotifiedStatus, setLastNotifiedStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const shouldLock = cartOpen || branchPickerOpen || Boolean(editingCartItemId);
@@ -97,10 +110,51 @@ export function CustomerShell() {
   }, [cart.length]);
 
   useEffect(() => {
+    const storedOrderId = window.localStorage.getItem(ACTIVE_ORDER_STORAGE_KEY);
+    if (storedOrderId) {
+      setActiveOrderId(storedOrderId);
+    }
+  }, []);
+
+  useEffect(() => {
     setEditingCartItemId(null);
     setCartOpen(false);
     setBranchPickerOpen(false);
   }, [activeBranch?.id]);
+
+  useEffect(() => {
+    if (!activeOrderId) {
+      setActiveOrder(null);
+      return;
+    }
+
+    return subscribeOrder(activeOrderId, (order) => {
+      setActiveOrder(order);
+
+      if (!order || order.status === "delivered") {
+        window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+        setActiveOrderId(null);
+      }
+    });
+  }, [activeOrderId]);
+
+  useEffect(() => {
+    if (!activeOrder) return;
+    if (activeOrder.status === lastNotifiedStatus) return;
+
+    setLastNotifiedStatus(activeOrder.status);
+
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    if (activeOrder.status === "new") return;
+
+    const notification = new Notification("Actualización de tu pedido", {
+      body:
+        activeOrder.statusMessage ||
+        `Tu pedido ahora está en estado: ${orderStatusLabels[activeOrder.status]}.`
+    });
+
+    notification.onclick = () => window.focus();
+  }, [activeOrder, lastNotifiedStatus]);
 
   const filteredProducts = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -128,6 +182,10 @@ export function CustomerShell() {
     () => getWhatsAppHref(activeBranch?.whatsapp) ?? DEFAULT_WHATSAPP_LINK,
     [activeBranch?.whatsapp]
   );
+  const shouldRecommendWhatsapp =
+    activeOrder?.status === "preparing" ||
+    activeOrder?.status === "ready" ||
+    activeOrder?.status === "rejected";
 
   const editingCartItem = useMemo(
     () => cart.find((item) => item.id === editingCartItemId) ?? null,
@@ -287,11 +345,13 @@ export function CustomerShell() {
       setSubmitState("sending");
       setSubmitMessage("");
 
-      await createOrder(activeBranch.id, cart, customerName.trim());
+      const order = await createOrder(activeBranch.id, cart, customerName.trim());
       clearCart();
       setCustomerName("");
       setCartOpen(false);
       closeEditor();
+      setActiveOrderId(order.id);
+      window.localStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, order.id);
       setSubmitState("success");
       setSubmitMessage("Tu pedido fue enviado correctamente.");
     } catch (error) {
@@ -424,6 +484,87 @@ export function CustomerShell() {
       </nav>
 
       <div className="space-y-8">
+        {activeOrder && (
+          <section className="rounded-shell border border-line bg-panel p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm uppercase tracking-[0.25em] text-brand">Seguimiento</p>
+                <h2 className="mt-2 text-2xl font-semibold text-text">
+                  {orderStatusLabels[activeOrder.status]}
+                </h2>
+                {activeOrder.statusMessage && (
+                  <p className="mt-2 text-sm text-muted">{activeOrder.statusMessage}</p>
+                )}
+                {typeof activeOrder.estimatedMinutes === "number" &&
+                  activeOrder.status === "preparing" && (
+                    <p className="mt-2 text-sm font-semibold text-brand">
+                      Tiempo estimado: {activeOrder.estimatedMinutes} min
+                    </p>
+                  )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-brand/10 px-3 py-2 text-sm font-semibold text-brand">
+                  Pedido #{activeOrder.id.slice(-6).toUpperCase()}
+                </span>
+                {shouldRecommendWhatsapp && whatsappHref && (
+                  <a
+                    href={whatsappHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-4 py-3 text-sm font-semibold text-white"
+                  >
+                    <MessageCircle size={16} />
+                    Mandar mensaje al restaurante
+                  </a>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-4">
+              {[
+                { key: "new", label: "Recibido", icon: ShoppingBag },
+                { key: "preparing", label: "En cocina", icon: Clock3 },
+                { key: "ready", label: "Listo", icon: PackageCheck },
+                { key: "delivered", label: "Entregado", icon: CheckCircle2 }
+              ].map((step, index) => {
+                const Icon = step.icon;
+                const activeIndex = ["new", "preparing", "ready", "delivered", "rejected"].indexOf(
+                  activeOrder.status
+                );
+                const currentIndex = ["new", "preparing", "ready", "delivered"].indexOf(step.key);
+                const isActive =
+                  activeOrder.status === "rejected" ? step.key === "new" : currentIndex <= activeIndex;
+
+                return (
+                  <div
+                    key={step.key}
+                    className={[
+                      "rounded-card border p-4",
+                      isActive ? "border-brand bg-brand/10" : "border-line bg-surface"
+                    ].join(" ")}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={[
+                          "grid h-10 w-10 place-items-center rounded-full",
+                          isActive ? "bg-brand text-white" : "bg-panel text-muted"
+                        ].join(" ")}
+                      >
+                        <Icon size={18} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-text">{step.label}</p>
+                        <p className="text-xs text-muted">Paso {index + 1}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {categories.map((category) => {
           const sectionProducts = filteredProducts.filter(
             (product) => product.categoryId === category.id

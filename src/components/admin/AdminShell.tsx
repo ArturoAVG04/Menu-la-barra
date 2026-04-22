@@ -20,7 +20,13 @@ import { AdminProductForm } from "@/components/admin/AdminProductForm";
 import { OrderTracker } from "@/components/admin/OrderTracker";
 import { useAppState } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/ThemeProvider";
-import { deleteBranch, saveBranch, subscribeBranches, subscribeOrders } from "@/lib/services/menu";
+import {
+  deleteBranch,
+  saveBranch,
+  subscribeBranches,
+  subscribeOrders,
+  updateOrderStatus
+} from "@/lib/services/menu";
 import type { Branch, Order } from "@/types";
 
 const weekDays = [
@@ -42,6 +48,15 @@ const initialBranchDraft = {
   isOpen: true
 };
 
+function defaultOrderSettings() {
+  return {
+    baseItemThreshold: 3,
+    baseMinutes: 20,
+    extraItemStep: 2,
+    extraMinutesPerStep: 5
+  };
+}
+
 function defaultSchedule() {
   return weekDays.map((day) => ({
     day: day.label,
@@ -49,6 +64,19 @@ function defaultSchedule() {
     open: "13:00",
     close: "22:00"
   }));
+}
+
+function getEstimatedMinutes(branch: Branch, order: Order) {
+  const settings = branch.orderSettings ?? defaultOrderSettings();
+  const itemCount = order.itemCount ?? order.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  if (itemCount <= settings.baseItemThreshold) {
+    return settings.baseMinutes;
+  }
+
+  const extraItems = itemCount - settings.baseItemThreshold;
+  const extraBlocks = Math.ceil(extraItems / Math.max(settings.extraItemStep, 1));
+  return settings.baseMinutes + extraBlocks * settings.extraMinutesPerStep;
 }
 
 type Notice = {
@@ -135,6 +163,7 @@ export function AdminShell() {
         address: branchDraft.address.trim(),
         whatsapp: branchDraft.whatsapp.trim(),
         isPrimary: branchDraft.isPrimary,
+        orderSettings: defaultOrderSettings(),
         weeklyHours: defaultSchedule(),
         isOpen: branchDraft.isOpen
       };
@@ -172,6 +201,46 @@ export function AdminShell() {
   async function handleDeleteBranch(branchId: string) {
     await deleteBranch(branchId);
     notify("Sucursal eliminada");
+  }
+
+  async function handleAcceptOrder(order: Order) {
+    if (!selectedBranch) return;
+
+    const estimatedMinutes = getEstimatedMinutes(selectedBranch, order);
+    await updateOrderStatus(order.id, {
+      status: "preparing",
+      estimatedMinutes,
+      estimatedReadyAt: Date.now() + estimatedMinutes * 60_000,
+      statusMessage:
+        "Tu pedido fue aceptado. Te recomendamos mandar mensaje al restaurante por cualquier detalle o para recibir actualizaciones."
+    });
+    notify("Pedido aceptado");
+  }
+
+  async function handleRejectOrder(order: Order) {
+    await updateOrderStatus(order.id, {
+      status: "rejected",
+      statusMessage:
+        "Tu pedido fue rechazado. Te recomendamos mandar mensaje al restaurante para revisar cualquier detalle."
+    });
+    notify("Pedido rechazado");
+  }
+
+  async function handleReadyOrder(order: Order) {
+    await updateOrderStatus(order.id, {
+      status: "ready",
+      statusMessage:
+        "Tu pedido está listo. Te recomendamos mandar mensaje al restaurante para coordinar cualquier detalle."
+    });
+    notify("Pedido listo");
+  }
+
+  async function handleDeliveredOrder(order: Order) {
+    await updateOrderStatus(order.id, {
+      status: "delivered",
+      statusMessage: "Pedido entregado"
+    });
+    notify("Pedido entregado");
   }
 
   function renderSidebar() {
@@ -515,6 +584,106 @@ export function AdminShell() {
                   </div>
 
                   <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-text">Tiempos de preparación</h3>
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                      <label className="space-y-2 text-sm text-text">
+                        <span>Hasta cuántos productos</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={branchEditor.orderSettings?.baseItemThreshold ?? 3}
+                          onChange={(event) =>
+                            setBranchEditor((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    orderSettings: {
+                                      ...(current.orderSettings ?? defaultOrderSettings()),
+                                      baseItemThreshold: Number(event.target.value) || 1
+                                    }
+                                  }
+                                : current
+                            )
+                          }
+                          className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                        />
+                      </label>
+                      <label className="space-y-2 text-sm text-text">
+                        <span>Minutos base</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={branchEditor.orderSettings?.baseMinutes ?? 20}
+                          onChange={(event) =>
+                            setBranchEditor((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    orderSettings: {
+                                      ...(current.orderSettings ?? defaultOrderSettings()),
+                                      baseMinutes: Number(event.target.value) || 1
+                                    }
+                                  }
+                                : current
+                            )
+                          }
+                          className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                        />
+                      </label>
+                      <label className="space-y-2 text-sm text-text">
+                        <span>Cada cuántos extras</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={branchEditor.orderSettings?.extraItemStep ?? 2}
+                          onChange={(event) =>
+                            setBranchEditor((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    orderSettings: {
+                                      ...(current.orderSettings ?? defaultOrderSettings()),
+                                      extraItemStep: Number(event.target.value) || 1
+                                    }
+                                  }
+                                : current
+                            )
+                          }
+                          className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                        />
+                      </label>
+                      <label className="space-y-2 text-sm text-text">
+                        <span>Minutos extra</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={branchEditor.orderSettings?.extraMinutesPerStep ?? 5}
+                          onChange={(event) =>
+                            setBranchEditor((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    orderSettings: {
+                                      ...(current.orderSettings ?? defaultOrderSettings()),
+                                      extraMinutesPerStep: Number(event.target.value) || 1
+                                    }
+                                  }
+                                : current
+                            )
+                          }
+                          className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                        />
+                      </label>
+                    </div>
+                    <p className="text-sm text-muted">
+                      Ejemplo: hasta {branchEditor.orderSettings?.baseItemThreshold ?? 3} productos son{" "}
+                      {branchEditor.orderSettings?.baseMinutes ?? 20} min; luego sumas{" "}
+                      {branchEditor.orderSettings?.extraMinutesPerStep ?? 5} min por cada{" "}
+                      {branchEditor.orderSettings?.extraItemStep ?? 2} productos extra.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
                     <h3 className="text-lg font-semibold text-text">Horarios</h3>
                     <div className="space-y-3">
                       {(branchEditor.weeklyHours || defaultSchedule()).map((item, index) => (
@@ -631,7 +800,13 @@ export function AdminShell() {
 
           {section === "orders" && (
             selectedBranch ? (
-              <OrderTracker orders={orders} />
+              <OrderTracker
+                orders={orders.filter((order) => order.status !== "delivered")}
+                onAccept={handleAcceptOrder}
+                onReject={handleRejectOrder}
+                onReady={handleReadyOrder}
+                onDelivered={handleDeliveredOrder}
+              />
             ) : (
               <section className="rounded-shell border border-dashed border-line bg-panel p-6 text-sm text-muted">
                 Selecciona una sucursal.

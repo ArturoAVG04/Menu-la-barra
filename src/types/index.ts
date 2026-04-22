@@ -5,6 +5,12 @@ export type Branch = {
   address: string;
   whatsapp?: string;
   isPrimary?: boolean;
+  orderSettings?: {
+    baseItemThreshold: number;
+    baseMinutes: number;
+    extraItemStep: number;
+    extraMinutesPerStep: number;
+  };
   weeklyHours?: {
     day: string;
     enabled: boolean;
@@ -74,7 +80,7 @@ export type CartItem = {
   }[];
 };
 
-export type OrderStatus = "new" | "preparing" | "ready" | "delivered";
+export type OrderStatus = "new" | "preparing" | "ready" | "rejected" | "delivered";
 
 export type Order = {
   id: string;
@@ -84,6 +90,11 @@ export type Order = {
   items: CartItem[];
   total: number;
   status: OrderStatus;
+  itemCount?: number;
+  estimatedMinutes?: number;
+  estimatedReadyAt?: number;
+  statusMessage?: string;
+  updatedAt?: number;
   createdAt: number;
 };
 

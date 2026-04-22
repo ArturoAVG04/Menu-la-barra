@@ -7,7 +7,8 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc
+  setDoc,
+  updateDoc
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase/config";
@@ -18,6 +19,7 @@ import type {
   Category,
   ModifierTemplate,
   Order,
+  OrderStatus,
   Product
 } from "@/types";
 
@@ -82,6 +84,12 @@ export function subscribeOrders(branchId: string, callback: (orders: Order[]) =>
   });
 }
 
+export function subscribeOrder(orderId: string, callback: (order: Order | null) => void) {
+  return onSnapshot(doc(db, "orders", orderId), (snapshot) => {
+    callback(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as Order) : null);
+  });
+}
+
 function normalizeCartItems(items: CartItem[]) {
   return items.map((item) => ({
     id: item.id,
@@ -104,15 +112,40 @@ function normalizeCartItems(items: CartItem[]) {
 
 export async function createOrder(branchId: string, items: CartItem[], customerName: string) {
   const total = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return addDoc(collection(db, "orders"), {
     sucursalID: branchId,
     items: normalizeCartItems(items),
+    itemCount,
     total,
     customerName,
     status: "new",
     createdAt: Date.now(),
+    updatedAt: Date.now(),
     serverCreatedAt: serverTimestamp()
+  });
+}
+
+export async function updateOrderStatus(
+  orderId: string,
+  payload: {
+    status: OrderStatus;
+    estimatedMinutes?: number;
+    estimatedReadyAt?: number;
+    statusMessage?: string;
+  }
+) {
+  return updateDoc(doc(db, "orders", orderId), {
+    status: payload.status,
+    updatedAt: Date.now(),
+    ...(typeof payload.estimatedMinutes === "number"
+      ? { estimatedMinutes: payload.estimatedMinutes }
+      : {}),
+    ...(typeof payload.estimatedReadyAt === "number"
+      ? { estimatedReadyAt: payload.estimatedReadyAt }
+      : {}),
+    ...(payload.statusMessage ? { statusMessage: payload.statusMessage } : {})
   });
 }
 
