@@ -110,16 +110,28 @@ function normalizeCartItems(items: CartItem[]) {
   }));
 }
 
-export async function createOrder(branchId: string, items: CartItem[], customerName: string) {
-  const total = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+export async function createOrder(
+  branchId: string,
+  items: CartItem[],
+  customerName: string,
+  customerPhone: string,
+  tipPercent: number,
+  tipAmount: number
+) {
+  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const total = subtotal + tipAmount;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return addDoc(collection(db, "orders"), {
     sucursalID: branchId,
     items: normalizeCartItems(items),
     itemCount,
+    subtotal,
+    tipPercent,
+    tipAmount,
     total,
     customerName,
+    customerPhone,
     status: "new",
     createdAt: Date.now(),
     updatedAt: Date.now(),

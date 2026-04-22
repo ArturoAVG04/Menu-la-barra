@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronRight,
@@ -32,6 +32,7 @@ import type { CartItem, Order, Product } from "@/types";
 type ModifierSelectionMap = Record<string, string[]>;
 const DEFAULT_WHATSAPP_LINK = "https://wa.me/message/JRC557CVY6LP1";
 const ACTIVE_ORDER_STORAGE_KEY = "la-barra-active-order";
+const CUSTOMER_DETAILS_STORAGE_KEY = "la-barra-customer-details";
 const orderStatusLabels = {
   new: "Pendiente de confirmación",
   preparing: "En cocina",
@@ -76,6 +77,8 @@ export function CustomerShell() {
   const { categories, products } = useRealtimeMenu(activeBranch?.id);
   const [search, setSearch] = useState("");
   const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [tipPercent, setTipPercent] = useState(10);
   const [cartOpen, setCartOpen] = useState(false);
   const [branchPickerOpen, setBranchPickerOpen] = useState(false);
   const [editingCartItemId, setEditingCartItemId] = useState<string | null>(null);
@@ -88,6 +91,8 @@ export function CustomerShell() {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [lastNotifiedStatus, setLastNotifiedStatus] = useState<string | null>(null);
+  const [addNotice, setAddNotice] = useState("");
+  const editorPanelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const shouldLock = cartOpen || branchPickerOpen || Boolean(editingCartItemId);
@@ -113,6 +118,19 @@ export function CustomerShell() {
     const storedOrderId = window.localStorage.getItem(ACTIVE_ORDER_STORAGE_KEY);
     if (storedOrderId) {
       setActiveOrderId(storedOrderId);
+    }
+
+    try {
+      const storedCustomer = window.localStorage.getItem(CUSTOMER_DETAILS_STORAGE_KEY);
+      if (!storedCustomer) return;
+      const parsed = JSON.parse(storedCustomer) as {
+        customerName?: string;
+        customerPhone?: string;
+      };
+      setCustomerName(parsed.customerName ?? "");
+      setCustomerPhone(parsed.customerPhone ?? "");
+    } catch {
+      // ignore invalid local storage
     }
   }, []);
 
@@ -156,6 +174,19 @@ export function CustomerShell() {
     notification.onclick = () => window.focus();
   }, [activeOrder, lastNotifiedStatus]);
 
+  useEffect(() => {
+    window.localStorage.setItem(
+      CUSTOMER_DETAILS_STORAGE_KEY,
+      JSON.stringify({ customerName, customerPhone })
+    );
+  }, [customerName, customerPhone]);
+
+  useEffect(() => {
+    if (!addNotice) return;
+    const timeoutId = window.setTimeout(() => setAddNotice(""), 2200);
+    return () => window.clearTimeout(timeoutId);
+  }, [addNotice]);
+
   const filteredProducts = useMemo(() => {
     const term = search.trim().toLowerCase();
 
@@ -178,6 +209,8 @@ export function CustomerShell() {
     () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
     [cart]
   );
+  const tipAmount = useMemo(() => (cartTotal * tipPercent) / 100, [cartTotal, tipPercent]);
+  const orderTotal = cartTotal + tipAmount;
   const whatsappHref = useMemo(
     () => getWhatsAppHref(activeBranch?.whatsapp) ?? DEFAULT_WHATSAPP_LINK,
     [activeBranch?.whatsapp]
@@ -235,6 +268,11 @@ export function CustomerShell() {
     setEditorError("");
   }, [editingCartItemId, editingCartItem]);
 
+  useEffect(() => {
+    if (!editingCartItemId || !editorPanelRef.current) return;
+    editorPanelRef.current.scrollTo({ top: 0, behavior: "auto" });
+  }, [editingCartItemId]);
+
   function handleAddProduct(product: Product) {
     if (!activeBranch) return;
 
@@ -251,8 +289,7 @@ export function CustomerShell() {
     };
 
     addToCart(item);
-    setCartOpen(true);
-    setEditingCartItemId(item.id);
+    setAddNotice(`"${product.name}" agregado al carrito`);
   }
 
   function toggleEditorOption(
@@ -320,7 +357,15 @@ export function CustomerShell() {
   }
 
   async function submitOrder() {
-    if (!activeBranch || !activeBranch.isOpen || !cart.length || !customerName.trim()) return;
+    if (
+      !activeBranch ||
+      !activeBranch.isOpen ||
+      !cart.length ||
+      !customerName.trim() ||
+      !customerPhone.trim()
+    ) {
+      return;
+    }
 
     const invalidItem = cart.find((item) => {
       const product = products.find((productEntry) => productEntry.id === item.productId);
@@ -345,9 +390,15 @@ export function CustomerShell() {
       setSubmitState("sending");
       setSubmitMessage("");
 
-      const order = await createOrder(activeBranch.id, cart, customerName.trim());
+      const order = await createOrder(
+        activeBranch.id,
+        cart,
+        customerName.trim(),
+        customerPhone.trim(),
+        tipPercent,
+        tipAmount
+      );
       clearCart();
-      setCustomerName("");
       setCartOpen(false);
       closeEditor();
       setActiveOrderId(order.id);
@@ -372,6 +423,14 @@ export function CustomerShell() {
 
   return (
     <div className="space-y-6 pb-40 md:pb-32">
+      {addNotice && (
+        <div className="pointer-events-none fixed left-1/2 top-4 z-[80] -translate-x-1/2 px-4">
+          <div className="rounded-full border border-success/30 bg-panel px-5 py-3 text-sm font-semibold text-success shadow-glow">
+            {addNotice}
+          </div>
+        </div>
+      )}
+
       <header className="overflow-hidden rounded-shell border border-line bg-panel">
         <div
           className="relative p-5 md:p-6"
@@ -404,11 +463,8 @@ export function CustomerShell() {
                   )}
 
                   <div>
-                    <p className="text-sm uppercase tracking-[0.25em] text-brand">
-                      Menú ({activeBranch.name})
-                    </p>
                     <h1 className="mt-2 text-3xl font-semibold text-white md:text-4xl">
-                      Pide a tu ritmo
+                      {activeBranch.name}
                     </h1>
                     {activeBranch.address && (
                       <p className="mt-2 max-w-2xl text-sm text-white/80">
@@ -462,7 +518,7 @@ export function CustomerShell() {
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar platillos, bebidas o algo antojable"
+                  placeholder="¿Que se te antoja hoy?"
                   className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/60"
                 />
               </div>
@@ -471,12 +527,12 @@ export function CustomerShell() {
         </div>
       </header>
 
-      <nav className="flex flex-wrap gap-2 lg:gap-3">
+      <nav className="scrollbar-subtle flex gap-2 overflow-x-auto whitespace-nowrap pb-2 lg:gap-3">
         {categories.map((category) => (
           <a
             key={category.id}
             href={`#category-${category.id}`}
-            className="inline-flex min-h-11 max-w-full items-center justify-center rounded-full border border-line bg-panel px-4 py-3 text-center text-sm font-semibold text-text transition hover:border-brand/40 hover:bg-brand/5"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-line bg-panel px-4 py-3 text-center text-sm font-semibold text-text transition hover:border-brand/40 hover:bg-brand/5"
           >
             {category.name}
           </a>
@@ -581,7 +637,7 @@ export function CustomerShell() {
                 </span>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-4">
                 {sectionProducts.map((product) => (
                   <MenuCard key={product.id} product={product} onSelect={handleAddProduct} />
                 ))}
@@ -861,6 +917,70 @@ export function CustomerShell() {
                     placeholder="Nombre para el pedido"
                     className="min-h-11 rounded-full border border-line bg-surface px-4 py-3 text-sm text-text outline-none"
                   />
+                  <input
+                    value={customerPhone}
+                    onChange={(event) => setCustomerPhone(event.target.value)}
+                    placeholder="Numero de telefono"
+                    inputMode="tel"
+                    className="min-h-11 rounded-full border border-line bg-surface px-4 py-3 text-sm text-text outline-none"
+                  />
+
+                  <div className="rounded-card border border-line bg-surface p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-text">Propina</p>
+                        <p className="text-sm text-muted">
+                          Ajusta el porcentaje para este pedido
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-brand/10 px-3 py-1 text-sm font-semibold text-brand">
+                        {tipPercent}%
+                      </span>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {[0, 10, 15, 20].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setTipPercent(preset)}
+                          className={[
+                            "inline-flex min-h-10 items-center justify-center rounded-full px-4 py-2 text-sm font-semibold",
+                            tipPercent === preset
+                              ? "bg-brand text-white"
+                              : "border border-line text-text"
+                          ].join(" ")}
+                        >
+                          {preset}%
+                        </button>
+                      ))}
+                    </div>
+
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={tipPercent}
+                      onChange={(event) => setTipPercent(Number(event.target.value))}
+                      className="mt-4 w-full accent-[rgb(var(--brand))]"
+                    />
+
+                    <div className="mt-4 space-y-2 text-sm text-text">
+                      <div className="flex items-center justify-between">
+                        <span>Subtotal</span>
+                        <span>{currency(cartTotal)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Propina</span>
+                        <span>{currency(tipAmount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between font-semibold">
+                        <span>Total</span>
+                        <span>{currency(orderTotal)}</span>
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <button
@@ -874,7 +994,10 @@ export function CustomerShell() {
                       type="button"
                       onClick={() => void submitOrder()}
                       disabled={
-                        !customerName.trim() || !activeBranch.isOpen || submitState === "sending"
+                        !customerName.trim() ||
+                        !customerPhone.trim() ||
+                        !activeBranch.isOpen ||
+                        submitState === "sending"
                       }
                       className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
                     >
@@ -884,7 +1007,7 @@ export function CustomerShell() {
                           Enviando pedido...
                         </span>
                       ) : activeBranch.isOpen
-                        ? `Enviar pedido ${currency(cartTotal)}`
+                        ? `Enviar pedido ${currency(orderTotal)}`
                         : "Sucursal cerrada"}
                     </button>
                   </div>
@@ -908,7 +1031,10 @@ export function CustomerShell() {
       {editingCartItem && editingProduct && (
         <div className="fixed inset-0 z-[60] bg-black/55 p-4 backdrop-blur-sm">
           <div className="mx-auto flex h-full max-w-2xl items-end md:items-center">
-            <div className="w-full rounded-shell border border-line bg-panel p-5 shadow-glow md:p-6">
+            <div
+              ref={editorPanelRef}
+              className="max-h-[88vh] w-full overflow-y-auto rounded-shell border border-line bg-panel p-5 shadow-glow md:max-w-xl md:p-6"
+            >
               <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
@@ -936,7 +1062,7 @@ export function CustomerShell() {
                 </p>
               </div>
 
-              <div className="mt-5 max-h-[55vh] space-y-4 overflow-y-auto pr-1">
+              <div className="mt-5 space-y-4">
                 {editingProduct.modifiers.map((modifier) => (
                   <div key={modifier.id} className="rounded-card border border-line p-4">
                     <div className="flex items-center justify-between gap-3">
