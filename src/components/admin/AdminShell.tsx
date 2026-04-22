@@ -41,6 +41,7 @@ const initialBranchDraft = {
   slug: "",
   address: "",
   whatsapp: "",
+  instagram: "",
   isPrimary: false,
   isOpen: true
 };
@@ -164,6 +165,7 @@ export function AdminShell() {
         slug: branchDraft.slug.trim() || branchDraft.name.toLowerCase().replaceAll(" ", "-"),
         address: branchDraft.address.trim(),
         whatsapp: branchDraft.whatsapp.trim(),
+        instagram: (branchDraft as any).instagram?.trim() || "",
         isPrimary: branchDraft.isPrimary,
         orderSettings: defaultOrderSettings(),
         weeklyHours: defaultSchedule(),
@@ -609,6 +611,16 @@ export function AdminShell() {
                       className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
                       placeholder="WhatsApp"
                     />
+                    <input
+                      value={(branchEditor as any).instagram || ""}
+                      onChange={(event) =>
+                        setBranchEditor((current) =>
+                          current ? { ...current, instagram: event.target.value } : current
+                        )
+                      }
+                      className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                      placeholder="Instagram (link o usuario)"
+                    />
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
@@ -947,6 +959,14 @@ export function AdminShell() {
                 }
                 className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
                 placeholder="WhatsApp"
+              />
+              <input
+                value={(branchDraft as any).instagram || ""}
+                onChange={(event) =>
+                  setBranchDraft((current) => ({ ...current, instagram: event.target.value }))
+                }
+                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                placeholder="Instagram"
               />
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="flex min-h-11 items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-sm text-text">

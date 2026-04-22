@@ -72,6 +72,7 @@ const initialModifier: ModifierTemplate = {
   name: "",
   type: "multiple",
   required: false,
+  sortOrder: 0,
   options: [{ id: crypto.randomUUID(), name: "", priceDelta: 0 }]
 };
 
@@ -273,6 +274,31 @@ export function AdminProductForm({
     }
   }
 
+  async function moveModifier(modifierId: string, direction: "up" | "down") {
+    if (!branch) return;
+
+    const sortedModifiers = [...modifiers].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    const index = sortedModifiers.findIndex((m) => m.id === modifierId);
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (index < 0 || targetIndex < 0 || targetIndex >= sortedModifiers.length) return;
+
+    const reordered = [...sortedModifiers];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    await Promise.all(
+      reordered.map(async (mod, orderIndex) => {
+        const updated = { ...mod, sortOrder: orderIndex + 1 };
+        await saveModifier(branch.id, updated);
+        await syncModifierInProducts(mod.id, (item) => ({
+          ...item,
+          modifiers: item.modifiers.map((m) => (m.id === mod.id ? updated : m))
+        }));
+      })
+    );
+    onNotify("Orden de personalizaciones actualizado");
+  }
+
   async function handleSaveModifier(event: React.FormEvent) {
     event.preventDefault();
     if (!branch || !modifierDraft.name.trim()) return;
@@ -282,6 +308,9 @@ export function AdminProductForm({
       const cleanModifier: ModifierTemplate = {
         ...modifierDraft,
         id: modifierDraft.id || crypto.randomUUID(),
+        sortOrder: modifierDraft.id 
+          ? (modifiers.find(m => m.id === modifierDraft.id)?.sortOrder || 0)
+          : modifiers.length + 1,
         options: modifierDraft.options
           .filter((option) => option.name.trim())
           .map((option) => ({
@@ -1129,6 +1158,24 @@ export function AdminProductForm({
                   placeholder="Nombre"
                 />
 
+                <label className="space-y-2 text-sm text-text">
+                  <span>Prioridad</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={modifierDraft.sortOrder || ""}
+                    onChange={(event) =>
+                      setModifierDraft((current) => ({
+                        ...current,
+                        sortOrder: Number(event.target.value) || 0
+                      }))
+                    }
+                    className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                    placeholder="Ej: 1"
+                  />
+                </label>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <select
                     value={modifierDraft.type}
@@ -1229,14 +1276,32 @@ export function AdminProductForm({
             <section className="rounded-shell border border-line bg-panel p-6">
               <div className="grid gap-4 sm:grid-cols-2">
                 {modifiers.length ? (
-                  modifiers.map((modifier) => (
+                  [...modifiers]
+                    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                    .map((modifier, index, array) => (
                     <div key={modifier.id} className="group relative rounded-card border border-line bg-surface p-4 transition hover:border-brand/40">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="font-semibold text-text">{modifier.name}</p>
+                          <p className="font-semibold text-text">{modifier.name} <span className="text-[10px] text-brand ml-1">#{modifier.sortOrder || index + 1}</span></p>
                           <p className="text-[10px] text-muted uppercase tracking-wider">{modifier.type === 'single' ? 'Única' : 'Múltiple'}</p>
                         </div>
                         <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => void moveModifier(modifier.id, "up")}
+                            disabled={index === 0}
+                            className="p-1.5 text-muted hover:text-brand disabled:opacity-30"
+                          >
+                            <ArrowUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void moveModifier(modifier.id, "down")}
+                            disabled={index === array.length - 1}
+                            className="p-1.5 text-muted hover:text-brand disabled:opacity-30"
+                          >
+                            <ArrowDown size={14} />
+                          </button>
                           <button
                             type="button"
                             onClick={() => {

@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CheckCircle2,
   Clock3,
+  Instagram,
   LoaderCircle,
   Minus,
   MoonStar,
@@ -41,23 +42,42 @@ const orderStatusLabels = {
   rejected: "Pedido rechazado",
   delivered: "Pedido entregado"
 } as const;
+
+const WhatsAppLogo = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="currentColor" 
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.328-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.13.57-.074 1.758-.463 2.006-1.114.248-.651.248-1.21.173-1.328-.074-.118-.272-.198-.57-.347zM12.003 21c-1.748 0-3.41-.459-4.869-1.32l-.35-.208-3.61.947 1.012-3.415-.228-.363A8.96 8.96 0 0 1 2.88 12c0-4.962 4.039-9 9.002-9 4.964 0 9.003 4.038 9.003 9s-4.039 9-9.002 9zM21 12c0-5.123-4.035-9.305-9-9.924V2c0-.552-.448-1-1-1h-2c-.552 0-1 .448-1 1v.076C3.965 2.695 0 6.877 0 12c0 2.213.799 4.245 2.124 5.819L.044 23.056c-.19.641.385 1.216 1.026 1.026l5.237-2.08A9.914 9.914 0 0 0 12 24c5.523 0 10-4.477 10-10 0-5.123-4.035-9.305-9-9.924" />
+  </svg>
+);
+
 function createModifierMap(item?: CartItem) {
   return Object.fromEntries(
     (item?.selectedModifiers ?? []).map((modifier) => [modifier.modifierId, modifier.optionIds])
   ) as ModifierSelectionMap;
 }
 
-function getWhatsAppHref(value?: string) {
-  if (!value?.trim()) return null;
+function getSocialHref(value?: string, platform: "whatsapp" | "instagram" = "whatsapp") {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
 
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return value;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
   }
 
-  const digits = value.replace(/\D/g, "");
-  if (!digits) return null;
+  if (platform === "whatsapp") {
+    const digits = trimmed.replace(/\D/g, "");
+    return digits ? `https://wa.me/${digits}` : null;
+  }
 
-  return `https://wa.me/${digits}`;
+  if (platform === "instagram") {
+    return `https://instagram.com/${trimmed.replace("@", "")}`;
+  }
+
+  return null;
 }
 
 export function CustomerShell() {
@@ -66,6 +86,8 @@ export function CustomerShell() {
     branches,
     branding,
     cart,
+    cartItemsCount,
+    cartTotal,
     setBranch,
     addToCart,
     replaceCartItem,
@@ -235,19 +257,15 @@ export function CustomerShell() {
     });
   }, [products, search]);
 
-  const cartItemsCount = useMemo(
-    () => cart.reduce((sum, item) => sum + item.quantity, 0),
-    [cart]
-  );
-  const cartTotal = useMemo(
-    () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
-    [cart]
-  );
   const tipAmount = useMemo(() => (cartTotal * tipPercent) / 100, [cartTotal, tipPercent]);
   const orderTotal = cartTotal + tipAmount;
   const whatsappHref = useMemo(
-    () => getWhatsAppHref(activeBranch?.whatsapp) ?? DEFAULT_WHATSAPP_LINK,
+    () => getSocialHref(activeBranch?.whatsapp, "whatsapp") ?? DEFAULT_WHATSAPP_LINK,
     [activeBranch?.whatsapp]
+  );
+  const instagramHref = useMemo(
+    () => getSocialHref((activeBranch as any)?.instagram, "instagram"),
+    [activeBranch]
   );
   const shouldRecommendWhatsapp =
     activeOrder?.status === "preparing" ||
@@ -281,7 +299,9 @@ export function CustomerShell() {
   const editorSelectionsDetail = useMemo(() => {
     if (!editingProduct) return [];
 
-    return editingProduct.modifiers.map((modifier) => {
+    return [...editingProduct.modifiers]
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      .map((modifier) => {
       const selectedIds = editorSelections[modifier.id] ?? [];
       const options = modifier.options.filter((option) => selectedIds.includes(option.id));
 
@@ -698,47 +718,55 @@ export function CustomerShell() {
       )}
 
       <div className="fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-6xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        {whatsappHref ? (
-          <a
-            href={whatsappHref}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-14 w-14 items-center justify-center self-start rounded-full border border-[#25D366]/30 bg-[#25D366] text-white shadow-glow md:hidden"
-            aria-label="Enviar mensaje por WhatsApp"
-          >
-            <MessageCircle size={24} />
-          </a>
-        ) : (
-          <button
-            type="button"
-            disabled
-            className="inline-flex h-14 w-14 items-center justify-center self-start rounded-full border border-line bg-panel text-muted md:hidden"
-            aria-label="WhatsApp disponible pronto"
-          >
-            <MessageCircle size={24} />
-          </button>
-        )}
+        <div className="flex gap-2.5">
+          {whatsappHref && (
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[#25D366]/30 bg-[#25D366] text-white shadow-glow md:hidden"
+              aria-label="Enviar mensaje por WhatsApp"
+            >
+              <WhatsAppLogo className="h-7 w-7" />
+            </a>
+          )}
 
-        {whatsappHref ? (
-          <a
-            href={whatsappHref}
-            target="_blank"
-            rel="noreferrer"
-            className="hidden min-h-12 items-center justify-center gap-2 self-start rounded-full border border-[#25D366]/30 bg-[#25D366] px-5 py-3 text-sm font-semibold text-white shadow-glow md:inline-flex"
-          >
-            <MessageCircle size={18} />
-            Enviar mensaje por WhatsApp
-          </a>
-        ) : (
-          <button
-            type="button"
-            disabled
-            className="hidden min-h-12 items-center justify-center gap-2 self-start rounded-full border border-line bg-panel px-5 py-3 text-sm font-semibold text-muted md:inline-flex"
-          >
-            <MessageCircle size={18} />
-            WhatsApp disponible pronto
-          </button>
-        )}
+          {instagramHref && (
+            <a
+              href={instagramHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-pink-500/30 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white shadow-glow md:hidden"
+              aria-label="Seguir en Instagram"
+            >
+              <Instagram size={28} />
+            </a>
+          )}
+
+          {whatsappHref && (
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noreferrer"
+              className="hidden min-h-[56px] items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-6 py-3 text-sm font-semibold text-white shadow-glow md:inline-flex"
+            >
+              <WhatsAppLogo className="h-5 w-5" />
+              WhatsApp
+            </a>
+          )}
+
+          {instagramHref && (
+            <a
+              href={instagramHref}
+              target="_blank"
+              rel="noreferrer"
+              className="hidden min-h-[56px] items-center justify-center gap-2 rounded-full border border-pink-500/30 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] px-6 py-3 text-sm font-semibold text-white shadow-glow md:inline-flex"
+            >
+              <Instagram size={18} />
+              Instagram
+            </a>
+          )}
+        </div>
 
         {activeOrder ? (
           <button
@@ -1272,10 +1300,11 @@ export function CustomerShell() {
                   <div key={modifier.id} className="rounded-card border border-line p-4">
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-medium text-text">{modifier.name}</p>
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-                        {modifier.required ? "Obligatorio" : "Opcional"} ·{" "}
-                        {modifier.type === "single" ? "Una opción" : "Múltiples"}
-                      </span>
+                      {modifier.required && (
+                        <span className="text-xs font-bold uppercase tracking-wide text-brand">
+                          Obligatorio
+                        </span>
+                      )}
                     </div>
 
                     <div className="mt-3 space-y-2">
@@ -1328,14 +1357,14 @@ export function CustomerShell() {
                       </button>
                     </div>
                   </div>
-                  <div className="mt-4 rounded-card bg-surface px-4 py-3 text-sm text-text">
+                  <div className="mt-6 space-y-2 rounded-card bg-surface/50 px-4 py-4 text-sm text-text border border-line/50">
                     <div className="flex items-center justify-between">
-                      <span>Extras</span>
-                      <span>{currency(editorExtrasTotal)}</span>
+                      <span className="text-muted">Extras</span>
+                      <span className="font-medium text-text">{currency(editorExtrasTotal)}</span>
                     </div>
-                    <div className="mt-2 flex items-center justify-between font-semibold">
+                    <div className="flex items-center justify-between border-t border-line pt-2 font-bold text-base">
                       <span>Total</span>
-                      <span>{currency(editorTotal)}</span>
+                      <span className="text-brand">{currency(editorTotal)}</span>
                     </div>
                   </div>
                 </div>
@@ -1345,13 +1374,14 @@ export function CustomerShell() {
                 <p className="mt-4 text-sm font-medium text-danger">{editorError}</p>
               )}
 
-              <div className="mt-5 flex">
+              <div className="mt-6 flex">
                 <button
                   type="button"
                   onClick={saveCartItemChanges}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white"
+                  className="inline-flex min-h-[52px] w-full items-center justify-between rounded-full bg-brand px-6 py-3 text-base font-bold text-white shadow-glow transition active:scale-[0.98]"
                 >
-                  {editingCartItem ? "Guardar cambios" : "Agregar al carrito"} {currency(editorTotal)}
+                  <span>{editingCartItem ? "Guardar cambios" : "Agregar al carrito"}</span>
+                  <span className="border-l border-white/20 pl-4">{currency(editorTotal)}</span>
                 </button>
               </div>
             </div>

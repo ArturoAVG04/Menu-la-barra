@@ -12,6 +12,8 @@ type AppStateValue = {
   branches: Branch[];
   branding: BrandingSettings;
   cart: CartItem[];
+  cartItemsCount: number;
+  cartTotal: number;
   currentUser: User | null;
   role: UserRole;
   authReady: boolean;
@@ -87,10 +89,12 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!activeBranch) return;
-
     window.localStorage.setItem(ACTIVE_BRANCH_STORAGE_KEY, JSON.stringify(activeBranch));
+
+    // Solo cargamos del disco si la sucursal activa cambió realmente
+    const storedCart = readStoredCart(activeBranch.id);
+    setCart(storedCart);
     setCartBranchId(activeBranch.id);
-    setCart(readStoredCart(activeBranch.id));
   }, [activeBranch?.id]);
 
   useEffect(() => {
@@ -153,12 +157,24 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     }
   }, [activeBranch?.id, cart.length, cartBranchId]);
 
+  const cartItemsCount = useMemo(
+    () => cart.reduce((sum, item) => sum + item.quantity, 0),
+    [cart]
+  );
+
+  const cartTotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
+    [cart]
+  );
+
   const value = useMemo<AppStateValue>(
     () => ({
       activeBranch,
       branches,
       branding,
       cart,
+      cartItemsCount,
+      cartTotal,
       currentUser,
       role,
       authReady,
@@ -170,10 +186,22 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
         setCartBranchId(activeBranch.id);
         setCart((current) => {
-          const found = current.find((entry) => entry.id === item.id);
-          if (!found) return [...current, item];
-          return current.map((entry) =>
-            entry.id === item.id
+          const existingItemIndex = current.findIndex((entry) => {
+            if (entry.productId !== item.productId) return false;
+            if (entry.selectedModifiers.length !== item.selectedModifiers.length) return false;
+            
+            return entry.selectedModifiers.every((mod) => {
+              const otherMod = item.selectedModifiers.find(m => m.modifierId === mod.modifierId);
+              if (!otherMod) return false;
+              if (mod.optionIds.length !== otherMod.optionIds.length) return false;
+              return mod.optionIds.every(id => otherMod.optionIds.includes(id));
+            });
+          });
+
+          if (existingItemIndex === -1) return [...current, item];
+
+          return current.map((entry, index) =>
+            index === existingItemIndex
               ? { ...entry, quantity: entry.quantity + item.quantity }
               : entry
           );
@@ -212,7 +240,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         await signOut(auth);
       }
     }),
-    [activeBranch, authReady, branches, branding, cart, currentUser, role]
+    [activeBranch, authReady, branches, branding, cart, cartItemsCount, cartTotal, currentUser, role]
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
