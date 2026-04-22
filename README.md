@@ -80,7 +80,7 @@ Si quieres una experiencia similar a recarga automatica, `npm run dev` ya reempl
 
 Checklist rapido para que Vercel refleje tus avances en otros dispositivos:
 
-1. Confirma que estas trabajando en la raiz del repo y no dentro de `Menu-la-barra/`, porque en este proyecto existe una copia duplicada y Vercel podria terminar apuntando al directorio equivocado si se configura mal.
+1. Confirma que estas trabajando en la raiz del repo.
 2. Haz `git status` antes de subir para verificar que los cambios correctos estan en la raiz.
 3. Sube tus cambios con `git add .`, `git commit -m "mensaje"` y `git push origin main`.
 4. En Vercel revisa que el `Root Directory` del proyecto sea la raiz del repositorio.
