@@ -361,7 +361,7 @@ export function AdminShell() {
         {notices.map((notice) => (
           <div
             key={notice.id}
-            className="pointer-events-auto rounded-full border border-success/30 bg-panel px-6 py-3 text-sm font-bold text-success shadow-2xl backdrop-blur-md"
+            className="pointer-events-auto min-w-[220px] rounded-full border border-success/30 bg-panel px-6 py-3 text-center text-sm font-bold text-success shadow-2xl backdrop-blur-md"
           >
             {notice.message}
           </div>
@@ -808,7 +808,7 @@ export function AdminShell() {
                 onDelivered={handleDeliveredOrder}
               />
             ) : (
-              <section className="rounded-shell border border-dashed border-line bg-panel p-6 text-sm text-muted">
+              <section className="rounded-shell border border-dashed border-line bg-panel p-6 text-center text-sm text-muted">
                 Selecciona una sucursal.
               </section>
             )
@@ -889,7 +889,7 @@ export function AdminShell() {
               <button
                 type="submit"
                 disabled={isCreatingBranch || !branchDraft.name.trim()}
-                className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
+                className="inline-flex min-h-11 items-center justify-center self-center rounded-full bg-brand px-5 py-3 text-center text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
               >
                 {isCreatingBranch ? "Guardando..." : "Guardar"}
               </button>

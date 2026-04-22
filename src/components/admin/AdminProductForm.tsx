@@ -153,6 +153,36 @@ export function AdminProductForm({
     [branch?.id, product]
   );
 
+  async function syncModifierInProducts(
+    modifierId: string,
+    transform: (product: Product) => Product
+  ) {
+    if (!branch) return;
+
+    const affectedProducts = products.filter((item) =>
+      item.modifiers.some((modifier) => modifier.id === modifierId)
+    );
+
+    await Promise.all(
+      affectedProducts.map((item) => saveProduct(branch.id, transform(item)))
+    );
+  }
+
+  async function clearDeletedCategoryFromProducts(categoryId: string) {
+    if (!branch) return;
+
+    const affectedProducts = products.filter((item) => item.categoryId === categoryId);
+
+    await Promise.all(
+      affectedProducts.map((item) =>
+        saveProduct(branch.id, {
+          ...item,
+          categoryId: ""
+        })
+      )
+    );
+  }
+
   async function handleSaveCategory(event: React.FormEvent) {
     event.preventDefault();
     if (!branch || !categoryName.trim()) return;
@@ -214,6 +244,7 @@ export function AdminProductForm({
         setProduct((current) => ({ ...current, categoryId: "" }));
       }
 
+      await clearDeletedCategoryFromProducts(id);
       await deleteCategory(branch.id, id);
       onNotify("Categoría eliminada");
     } catch (error) {
@@ -231,6 +262,10 @@ export function AdminProductForm({
           options: [{ id: crypto.randomUUID(), name: "", priceDelta: 0 }]
         });
       }
+      await syncModifierInProducts(id, (item) => ({
+        ...item,
+        modifiers: item.modifiers.filter((modifier) => modifier.id !== id)
+      }));
       await deleteModifier(branch.id, id);
       onNotify("Personalización eliminada");
     } catch (error) {
@@ -256,6 +291,12 @@ export function AdminProductForm({
       };
 
       await saveModifier(branch.id, cleanModifier);
+      await syncModifierInProducts(cleanModifier.id, (item) => ({
+        ...item,
+        modifiers: item.modifiers.map((modifier) =>
+          modifier.id === cleanModifier.id ? cleanModifier : modifier
+        )
+      }));
       setModifierDraft({
         ...initialModifier,
         id: "",
@@ -411,7 +452,7 @@ export function AdminProductForm({
 
   if (!branch) {
     return (
-      <section className="rounded-shell border border-line bg-panel p-6 text-sm text-muted">
+      <section className="rounded-shell border border-line bg-panel p-6 text-center text-sm text-muted">
         Selecciona una sucursal.
       </section>
     );

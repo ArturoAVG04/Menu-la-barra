@@ -115,6 +115,7 @@ export async function createOrder(
   items: CartItem[],
   customerName: string,
   customerPhone: string,
+  orderNote: string,
   tipPercent: number,
   tipAmount: number
 ) {
@@ -132,6 +133,7 @@ export async function createOrder(
     total,
     customerName,
     customerPhone,
+    ...(orderNote ? { orderNote } : {}),
     status: "new",
     createdAt: Date.now(),
     updatedAt: Date.now(),

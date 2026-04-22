@@ -27,7 +27,7 @@ import { useTheme } from "@/components/providers/ThemeProvider";
 import { useRealtimeMenu } from "@/lib/hooks/useRealtimeMenu";
 import { createOrder, subscribeOrder } from "@/lib/services/menu";
 import { currency } from "@/lib/utils";
-import type { CartItem, Order, Product } from "@/types";
+import type { Branch, CartItem, Order, Product } from "@/types";
 
 type ModifierSelectionMap = Record<string, string[]>;
 const DEFAULT_WHATSAPP_LINK = "https://wa.me/message/JRC557CVY6LP1";
@@ -40,6 +40,15 @@ const orderStatusLabels = {
   rejected: "Pedido rechazado",
   delivered: "Pedido entregado"
 } as const;
+const weekDayLabels = [
+  "Domingo",
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Jueves",
+  "Viernes",
+  "Sábado"
+] as const;
 
 function createModifierMap(item?: CartItem) {
   return Object.fromEntries(
@@ -60,6 +69,33 @@ function getWhatsAppHref(value?: string) {
   return `https://wa.me/${digits}`;
 }
 
+function parseTimeToMinutes(value: string) {
+  const [hours, minutes] = value.split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
+function isBranchOpenNow(branch: Branch | null, currentDate: Date) {
+  if (!branch) return false;
+  if (!branch.isOpen) return false;
+  if (!branch.weeklyHours?.length) return branch.isOpen;
+
+  const todayLabel = weekDayLabels[currentDate.getDay()];
+  const todaySchedule = branch.weeklyHours.find((item) => item.day === todayLabel);
+  if (!todaySchedule?.enabled) return false;
+
+  const openMinutes = parseTimeToMinutes(todaySchedule.open);
+  const closeMinutes = parseTimeToMinutes(todaySchedule.close);
+  if (openMinutes === null || closeMinutes === null) return branch.isOpen;
+
+  const currentMinutes = currentDate.getHours() * 60 + currentDate.getMinutes();
+  if (closeMinutes <= openMinutes) {
+    return currentMinutes >= openMinutes || currentMinutes < closeMinutes;
+  }
+
+  return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+}
+
 export function CustomerShell() {
   const {
     activeBranch,
@@ -71,7 +107,8 @@ export function CustomerShell() {
     replaceCartItem,
     updateCartItemQuantity,
     removeFromCart,
-    clearCart
+    clearCart,
+    restoreCart
   } = useAppState();
   const { theme, toggleTheme } = useTheme();
   const { categories, products } = useRealtimeMenu(activeBranch?.id);
@@ -82,20 +119,28 @@ export function CustomerShell() {
   const [cartOpen, setCartOpen] = useState(false);
   const [branchPickerOpen, setBranchPickerOpen] = useState(false);
   const [editingCartItemId, setEditingCartItemId] = useState<string | null>(null);
+  const [editorProductId, setEditorProductId] = useState<string | null>(null);
   const [editorSelections, setEditorSelections] = useState<ModifierSelectionMap>({});
-  const [editorNote, setEditorNote] = useState("");
   const [editorQuantity, setEditorQuantity] = useState(1);
   const [editorError, setEditorError] = useState("");
+  const [orderNote, setOrderNote] = useState("");
   const [submitState, setSubmitState] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [submitMessage, setSubmitMessage] = useState("");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [lastNotifiedStatus, setLastNotifiedStatus] = useState<string | null>(null);
+  const [trackingOpen, setTrackingOpen] = useState(false);
+  const [currentTimestamp, setCurrentTimestamp] = useState(() => Date.now());
   const [addNotice, setAddNotice] = useState("");
   const editorPanelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const shouldLock = cartOpen || branchPickerOpen || Boolean(editingCartItemId);
+    const shouldLock =
+      cartOpen ||
+      branchPickerOpen ||
+      trackingOpen ||
+      Boolean(editingCartItemId) ||
+      Boolean(editorProductId);
     const previousOverflow = document.body.style.overflow;
 
     if (shouldLock) {
@@ -105,7 +150,7 @@ export function CustomerShell() {
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [branchPickerOpen, cartOpen, editingCartItemId]);
+  }, [branchPickerOpen, cartOpen, editingCartItemId, editorProductId, trackingOpen]);
 
   useEffect(() => {
     if (!cart.length) {
@@ -126,9 +171,11 @@ export function CustomerShell() {
       const parsed = JSON.parse(storedCustomer) as {
         customerName?: string;
         customerPhone?: string;
+        orderNote?: string;
       };
       setCustomerName(parsed.customerName ?? "");
       setCustomerPhone(parsed.customerPhone ?? "");
+      setOrderNote(parsed.orderNote ?? "");
     } catch {
       // ignore invalid local storage
     }
@@ -136,32 +183,55 @@ export function CustomerShell() {
 
   useEffect(() => {
     setEditingCartItemId(null);
+    setEditorProductId(null);
     setCartOpen(false);
     setBranchPickerOpen(false);
+    setTrackingOpen(false);
   }, [activeBranch?.id]);
 
   useEffect(() => {
     if (!activeOrderId) {
       setActiveOrder(null);
+      setLastNotifiedStatus(null);
+      setTrackingOpen(false);
       return;
     }
 
     return subscribeOrder(activeOrderId, (order) => {
       setActiveOrder(order);
 
-      if (!order || order.status === "delivered") {
+      if (order?.status === "delivered") {
+        setAddNotice("Pedido entregado");
+        setTrackingOpen(false);
+        setActiveOrder(null);
+        setLastNotifiedStatus(null);
         window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
         setActiveOrderId(null);
+        return;
+      }
+
+      if (!order) {
+        window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+        setActiveOrder(null);
+        setActiveOrderId(null);
+        setTrackingOpen(false);
+        setLastNotifiedStatus(null);
       }
     });
   }, [activeOrderId]);
 
   useEffect(() => {
     if (!activeOrder) return;
+    if (lastNotifiedStatus === null) {
+      setLastNotifiedStatus(activeOrder.status);
+      return;
+    }
     if (activeOrder.status === lastNotifiedStatus) return;
 
     setLastNotifiedStatus(activeOrder.status);
-
+    if (activeOrder.status !== "new" && activeOrder.status !== "delivered") {
+      setTrackingOpen(true);
+    }
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
     if (activeOrder.status === "new") return;
 
@@ -177,9 +247,9 @@ export function CustomerShell() {
   useEffect(() => {
     window.localStorage.setItem(
       CUSTOMER_DETAILS_STORAGE_KEY,
-      JSON.stringify({ customerName, customerPhone })
+      JSON.stringify({ customerName, customerPhone, orderNote })
     );
-  }, [customerName, customerPhone]);
+  }, [customerName, customerPhone, orderNote]);
 
   useEffect(() => {
     if (!addNotice) return;
@@ -219,6 +289,16 @@ export function CustomerShell() {
     activeOrder?.status === "preparing" ||
     activeOrder?.status === "ready" ||
     activeOrder?.status === "rejected";
+  const sortedBranches = useMemo(
+    () =>
+      [...branches].sort((left, right) => {
+        if (left.isPrimary === right.isPrimary) {
+          return left.name.localeCompare(right.name, "es", { sensitivity: "base" });
+        }
+        return left.isPrimary ? -1 : 1;
+      }),
+    [branches]
+  );
 
   const editingCartItem = useMemo(
     () => cart.find((item) => item.id === editingCartItemId) ?? null,
@@ -228,8 +308,10 @@ export function CustomerShell() {
     () =>
       editingCartItem
         ? products.find((product) => product.id === editingCartItem.productId) ?? null
+        : editorProductId
+            ? products.find((product) => product.id === editorProductId) ?? null
         : null,
-    [editingCartItem, products]
+    [editingCartItem, editorProductId, products]
   );
 
   const editorSelectionsDetail = useMemo(() => {
@@ -260,36 +342,33 @@ export function CustomerShell() {
   const editorTotal = editorUnitPrice * editorQuantity;
 
   useEffect(() => {
-    if (!editingCartItem) return;
+    if (!editingProduct) return;
 
-    setEditorSelections(createModifierMap(editingCartItem));
-    setEditorNote(editingCartItem.note ?? "");
-    setEditorQuantity(editingCartItem.quantity);
+    if (editingCartItem) {
+      setEditorSelections(createModifierMap(editingCartItem));
+      setEditorQuantity(editingCartItem.quantity);
+    } else {
+      setEditorSelections({});
+      setEditorQuantity(1);
+    }
     setEditorError("");
-  }, [editingCartItemId, editingCartItem]);
+  }, [editingCartItem, editingProduct]);
 
   useEffect(() => {
-    if (!editingCartItemId || !editorPanelRef.current) return;
+    if ((!editingCartItemId && !editorProductId) || !editorPanelRef.current) return;
     editorPanelRef.current.scrollTo({ top: 0, behavior: "auto" });
-  }, [editingCartItemId]);
+  }, [editingCartItemId, editorProductId]);
 
-  function handleAddProduct(product: Product) {
-    if (!activeBranch) return;
+  function openProductEditor(product: Product) {
+    if (activeOrder && (activeOrder.status === "preparing" || activeOrder.status === "rejected")) {
+      setAddNotice("Ya tienes una orden en curso. Si necesitas cambios, manda mensaje por WhatsApp.");
+      return;
+    }
 
-    const basePrice = product.salePrice || product.price;
-    const item: CartItem = {
-      id: crypto.randomUUID(),
-      productId: product.id,
-      name: product.name,
-      quantity: 1,
-      basePrice,
-      unitPrice: basePrice,
-      imageUrl: product.imageUrl,
-      selectedModifiers: []
-    };
-
-    addToCart(item);
-    setAddNotice(`"${product.name}" agregado al carrito`);
+    setCartOpen(false);
+    setEditingCartItemId(null);
+    setEditorProductId(product.id);
+    setEditorError("");
   }
 
   function toggleEditorOption(
@@ -315,16 +394,44 @@ export function CustomerShell() {
 
   function openCartEditor(itemId: string) {
     setCartOpen(true);
+    setEditorProductId(null);
     setEditingCartItemId(itemId);
   }
 
   function closeEditor() {
     setEditingCartItemId(null);
+    setEditorProductId(null);
     setEditorError("");
   }
 
+  function clearActiveOrderFlow() {
+    window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+    setActiveOrder(null);
+    setActiveOrderId(null);
+    setTrackingOpen(false);
+    setLastNotifiedStatus(null);
+  }
+
+  function handleDismissRejectedOrder() {
+    clearActiveOrderFlow();
+  }
+
+  function handleRetryRejectedOrder() {
+    if (!activeOrder) return;
+
+    const restoredItems = activeOrder.items.map((item) => ({
+      ...item,
+      id: crypto.randomUUID()
+    }));
+
+    restoreCart(restoredItems);
+    setOrderNote(activeOrder.orderNote ?? "");
+    clearActiveOrderFlow();
+    setCartOpen(true);
+  }
+
   function saveCartItemChanges() {
-    if (!editingCartItem || !editingProduct) return;
+    if (!editingProduct) return;
 
     const missingRequired = editingProduct.modifiers.find((modifier) => {
       if (!modifier.required) return false;
@@ -336,22 +443,40 @@ export function CustomerShell() {
       return;
     }
 
-    replaceCartItem({
-      ...editingCartItem,
-      quantity: editorQuantity,
-      note: editorNote.trim() || undefined,
-      basePrice: editorBasePrice,
-      unitPrice: editorUnitPrice,
-      selectedModifiers: editorSelectionsDetail
-        .filter((modifier) => modifier.optionIds.length)
-        .map((modifier) => ({
-          modifierId: modifier.modifierId,
-          modifierName: modifier.modifierName,
-          optionIds: modifier.optionIds,
-          optionNames: modifier.optionNames,
-          priceDelta: modifier.priceDelta
-        }))
-    });
+    const normalizedModifiers = editorSelectionsDetail
+      .filter((modifier) => modifier.optionIds.length)
+      .map((modifier) => ({
+        modifierId: modifier.modifierId,
+        modifierName: modifier.modifierName,
+        optionIds: modifier.optionIds,
+        optionNames: modifier.optionNames,
+        priceDelta: modifier.priceDelta
+      }));
+
+    if (editingCartItem) {
+      replaceCartItem({
+        ...editingCartItem,
+        quantity: editorQuantity,
+        note: undefined,
+        basePrice: editorBasePrice,
+        unitPrice: editorUnitPrice,
+        selectedModifiers: normalizedModifiers
+      });
+    } else {
+      const item: CartItem = {
+        id: crypto.randomUUID(),
+        productId: editingProduct.id,
+        name: editingProduct.name,
+        quantity: editorQuantity,
+        basePrice: editorBasePrice,
+        unitPrice: editorUnitPrice,
+        imageUrl: editingProduct.imageUrl,
+        selectedModifiers: normalizedModifiers
+      };
+
+      addToCart(item);
+      setAddNotice(`"${editingProduct.name}" agregado al carrito`);
+    }
 
     closeEditor();
   }
@@ -359,7 +484,7 @@ export function CustomerShell() {
   async function submitOrder() {
     if (
       !activeBranch ||
-      !activeBranch.isOpen ||
+      !activeBranchOpen ||
       !cart.length ||
       !customerName.trim() ||
       !customerPhone.trim()
@@ -395,6 +520,7 @@ export function CustomerShell() {
         cart,
         customerName.trim(),
         customerPhone.trim(),
+        orderNote.trim(),
         tipPercent,
         tipAmount
       );
@@ -403,6 +529,7 @@ export function CustomerShell() {
       closeEditor();
       setActiveOrderId(order.id);
       window.localStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, order.id);
+      setTrackingOpen(true);
       setSubmitState("success");
       setSubmitMessage("Tu pedido fue enviado correctamente.");
     } catch (error) {
@@ -412,6 +539,40 @@ export function CustomerShell() {
       setCartOpen(true);
     }
   }
+
+  useEffect(() => {
+    setCurrentTimestamp(Date.now());
+    const intervalId = window.setInterval(() => {
+      setCurrentTimestamp(Date.now());
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const activeOrderCountdownLabel = useMemo(() => {
+    if (!activeOrder || activeOrder.status !== "preparing") return null;
+
+    if (typeof activeOrder.estimatedReadyAt === "number") {
+      const remainingMinutes = Math.max(
+        0,
+        Math.ceil((activeOrder.estimatedReadyAt - currentTimestamp) / 60_000)
+      );
+      return remainingMinutes > 0
+        ? `Pedido listo en aproximadamente ${remainingMinutes} min`
+        : "Pedido listo en cualquier momento";
+    }
+
+    if (typeof activeOrder.estimatedMinutes === "number") {
+      return `Pedido listo en aproximadamente ${activeOrder.estimatedMinutes} min`;
+    }
+
+    return null;
+  }, [activeOrder, currentTimestamp]);
+  const activeDateTime = useMemo(() => new Date(currentTimestamp), [currentTimestamp]);
+  const activeBranchOpen = useMemo(
+    () => isBranchOpenNow(activeBranch, activeDateTime),
+    [activeBranch, activeDateTime]
+  );
 
   if (!activeBranch) {
     return (
@@ -425,7 +586,7 @@ export function CustomerShell() {
     <div className="space-y-6 pb-40 md:pb-32">
       {addNotice && (
         <div className="pointer-events-none fixed left-1/2 top-4 z-[80] -translate-x-1/2 px-4">
-          <div className="rounded-full border border-success/30 bg-panel px-5 py-3 text-sm font-semibold text-success shadow-glow">
+          <div className="min-w-[240px] rounded-full border border-success/30 bg-panel px-6 py-3 text-center text-sm font-semibold text-success shadow-glow">
             {addNotice}
           </div>
         </div>
@@ -478,12 +639,12 @@ export function CustomerShell() {
                   <span
                     className={[
                       "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
-                      activeBranch.isOpen
+                      activeBranchOpen
                         ? "bg-success/20 text-white"
                         : "bg-danger/20 text-white"
                     ].join(" ")}
                   >
-                    {activeBranch.isOpen ? "Sucursal abierta" : "Sucursal cerrada"}
+                    {activeBranchOpen ? "Sucursal abierta" : "Sucursal cerrada"}
                   </span>
                   {activeBranch.isPrimary && (
                     <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
@@ -540,87 +701,6 @@ export function CustomerShell() {
       </nav>
 
       <div className="space-y-8">
-        {activeOrder && (
-          <section className="rounded-shell border border-line bg-panel p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.25em] text-brand">Seguimiento</p>
-                <h2 className="mt-2 text-2xl font-semibold text-text">
-                  {orderStatusLabels[activeOrder.status]}
-                </h2>
-                {activeOrder.statusMessage && (
-                  <p className="mt-2 text-sm text-muted">{activeOrder.statusMessage}</p>
-                )}
-                {typeof activeOrder.estimatedMinutes === "number" &&
-                  activeOrder.status === "preparing" && (
-                    <p className="mt-2 text-sm font-semibold text-brand">
-                      Tiempo estimado: {activeOrder.estimatedMinutes} min
-                    </p>
-                  )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-brand/10 px-3 py-2 text-sm font-semibold text-brand">
-                  Pedido #{activeOrder.id.slice(-6).toUpperCase()}
-                </span>
-                {shouldRecommendWhatsapp && whatsappHref && (
-                  <a
-                    href={whatsappHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-4 py-3 text-sm font-semibold text-white"
-                  >
-                    <MessageCircle size={16} />
-                    Mandar mensaje al restaurante
-                  </a>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-4">
-              {[
-                { key: "new", label: "Recibido", icon: ShoppingBag },
-                { key: "preparing", label: "En cocina", icon: Clock3 },
-                { key: "ready", label: "Listo", icon: PackageCheck },
-                { key: "delivered", label: "Entregado", icon: CheckCircle2 }
-              ].map((step, index) => {
-                const Icon = step.icon;
-                const activeIndex = ["new", "preparing", "ready", "delivered", "rejected"].indexOf(
-                  activeOrder.status
-                );
-                const currentIndex = ["new", "preparing", "ready", "delivered"].indexOf(step.key);
-                const isActive =
-                  activeOrder.status === "rejected" ? step.key === "new" : currentIndex <= activeIndex;
-
-                return (
-                  <div
-                    key={step.key}
-                    className={[
-                      "rounded-card border p-4",
-                      isActive ? "border-brand bg-brand/10" : "border-line bg-surface"
-                    ].join(" ")}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={[
-                          "grid h-10 w-10 place-items-center rounded-full",
-                          isActive ? "bg-brand text-white" : "bg-panel text-muted"
-                        ].join(" ")}
-                      >
-                        <Icon size={18} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-text">{step.label}</p>
-                        <p className="text-xs text-muted">Paso {index + 1}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
         {categories.map((category) => {
           const sectionProducts = filteredProducts.filter(
             (product) => product.categoryId === category.id
@@ -639,7 +719,7 @@ export function CustomerShell() {
 
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-4">
                 {sectionProducts.map((product) => (
-                  <MenuCard key={product.id} product={product} onSelect={handleAddProduct} />
+                  <MenuCard key={product.id} product={product} onSelect={openProductEditor} />
                 ))}
               </div>
             </section>
@@ -696,7 +776,26 @@ export function CustomerShell() {
           </button>
         )}
 
-        {cart.length > 0 && (
+        {activeOrder ? (
+          <button
+            type="button"
+            onClick={() => setTrackingOpen(true)}
+            className="flex w-full items-center justify-between rounded-full border border-line bg-panel px-4 py-3 text-left shadow-glow md:ml-auto md:max-w-md"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-brand/10 p-3 text-brand">
+                <Clock3 size={18} />
+              </div>
+              <div>
+                <p className="font-semibold text-text">Seguimiento de pedido</p>
+                <p className="text-sm text-muted">
+                  {orderStatusLabels[activeOrder.status]}
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-muted" />
+          </button>
+        ) : cart.length > 0 && (
           <button
             type="button"
             onClick={() => setCartOpen(true)}
@@ -721,87 +820,80 @@ export function CustomerShell() {
       {branchPickerOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 p-4 backdrop-blur-sm">
           <div className="mx-auto flex h-full max-w-3xl items-end md:items-center">
-            <div className="w-full rounded-shell border border-line bg-panel p-5 shadow-glow md:p-6">
-              <div className="flex items-center justify-between gap-3">
+            <div className="flex max-h-[88vh] w-full flex-col overflow-hidden rounded-shell border border-line bg-panel p-5 shadow-glow md:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.25em] text-brand">Sucursales</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-text">
+                    Cambia sin salir del menú
+                  </h2>
+                  <p className="mt-2 text-center text-sm text-muted md:text-left">
+                    Tu carrito se mantiene separado por sucursal para que no se mezclen pedidos.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setBranchPickerOpen(false)}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
-                >
-                  <ArrowLeft size={16} />
-                  Volver
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBranchPickerOpen(false)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-text"
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-text"
                   aria-label="Cerrar selector de sucursal"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="mt-5">
-                <p className="text-sm uppercase tracking-[0.25em] text-brand">Sucursales</p>
-                <h2 className="mt-2 text-2xl font-semibold text-text">
-                  Cambia sin salir del menú
-                </h2>
-                <p className="mt-2 text-sm text-muted">
-                  Tu carrito se mantiene separado por sucursal para que no se mezclen pedidos.
-                </p>
-              </div>
-
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                {branches.map((branch) => (
-                  <button
-                    key={branch.id}
-                    type="button"
-                    onClick={() => {
-                      setBranch(branch);
-                      setBranchPickerOpen(false);
-                    }}
-                    className={[
-                      "overflow-hidden rounded-shell border text-left transition",
-                      branch.id === activeBranch.id
-                        ? "border-brand bg-brand/10"
-                        : "border-line bg-surface hover:border-brand/40"
-                    ].join(" ")}
-                  >
-                    <div
-                      className="relative min-h-40 p-5"
-                      style={
-                        branch.coverImageUrl
-                          ? {
-                              backgroundImage: `linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.58)), url(${branch.coverImageUrl})`,
-                              backgroundSize: "cover",
-                              backgroundPosition: "center"
-                            }
-                          : {
-                              background:
-                                "linear-gradient(135deg, rgb(var(--brand) / 0.16), rgb(var(--accent) / 0.18))"
-                            }
-                      }
+              <div className="mt-6 overflow-y-auto">
+                <div className="grid gap-4 md:grid-cols-2">
+                  {sortedBranches.map((branch) => (
+                    <button
+                      key={branch.id}
+                      type="button"
+                      onClick={() => {
+                        setBranch(branch);
+                        setBranchPickerOpen(false);
+                      }}
+                      className={[
+                        "overflow-hidden rounded-shell border text-left transition",
+                        branch.id === activeBranch.id
+                          ? "border-brand bg-brand/10"
+                          : "border-line bg-surface hover:border-brand/40"
+                      ].join(" ")}
                     >
-                      <div className="flex h-full flex-col justify-between gap-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-                            {branch.isOpen ? "Abierta" : "Cerrada"}
-                          </span>
-                          {branch.isPrimary && (
+                      <div
+                        className="relative min-h-40 p-5"
+                        style={
+                          branch.coverImageUrl
+                            ? {
+                                backgroundImage: `linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.58)), url(${branch.coverImageUrl})`,
+                                backgroundSize: "cover",
+                                backgroundPosition: "center"
+                              }
+                            : {
+                                background:
+                                  "linear-gradient(135deg, rgb(var(--brand) / 0.16), rgb(var(--accent) / 0.18))"
+                              }
+                        }
+                      >
+                        <div className="flex h-full flex-col justify-between gap-4">
+                          <div className="flex items-center justify-between gap-3">
                             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-                              Principal
+                              {isBranchOpenNow(branch, activeDateTime) ? "Abierta" : "Cerrada"}
                             </span>
-                          )}
-                        </div>
+                            {branch.isPrimary && (
+                              <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                                Principal
+                              </span>
+                            )}
+                          </div>
 
-                        <div>
-                          <p className="text-xl font-semibold text-white">{branch.name}</p>
-                          <p className="mt-2 text-sm text-white/80">{branch.address}</p>
+                          <div>
+                            <p className="text-xl font-semibold text-white">{branch.name}</p>
+                            <p className="mt-2 text-sm text-white/80">{branch.address}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -811,7 +903,7 @@ export function CustomerShell() {
       {cartOpen && (
         <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm">
           <div className="ml-auto flex h-full w-full max-w-2xl items-end md:items-stretch">
-            <aside className="flex h-[88vh] w-full flex-col rounded-t-shell border border-line bg-panel shadow-glow md:h-full md:rounded-none md:rounded-l-shell">
+            <aside className="flex h-[88vh] w-full flex-col overflow-hidden rounded-t-shell border border-line bg-panel shadow-glow md:h-full md:rounded-none md:rounded-l-shell">
               <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
                 <button
                   type="button"
@@ -831,196 +923,229 @@ export function CustomerShell() {
               </div>
 
               <div className="flex-1 overflow-y-auto px-5 py-5">
-                <div className="space-y-3">
-                  {cart.map((item) => (
-                    <article
-                      key={item.id}
-                      className="rounded-card border border-line bg-surface p-4"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-text">{item.name}</p>
-                          {item.selectedModifiers.length > 0 && (
-                            <p className="mt-1 text-sm text-muted">
-                              {item.selectedModifiers
-                                .map((modifier) =>
-                                  modifier.optionNames?.length
-                                    ? `${modifier.modifierName}: ${modifier.optionNames.join(", ")}`
-                                    : null
-                                )
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </p>
-                          )}
-                          {item.note && (
-                            <p className="mt-1 text-sm text-muted">Nota: {item.note}</p>
-                          )}
-                          <p className="mt-2 text-sm font-semibold text-brand">
-                            {currency(item.unitPrice)} c/u
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => removeFromCart(item.id)}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
-                          aria-label={`Eliminar ${item.name}`}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateCartItemQuantity(item.id, item.quantity - 1)}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
-                          >
-                            <Minus size={16} />
-                          </button>
-                          <span className="min-w-8 text-center font-semibold text-text">
-                            {item.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => updateCartItemQuantity(item.id, item.quantity + 1)}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
-                          >
-                            <Plus size={16} />
-                          </button>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => openCartEditor(item.id)}
-                            className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
-                          >
-                            Editar
-                          </button>
-                          <p className="font-semibold text-text">
-                            {currency(item.unitPrice * item.quantity)}
-                          </p>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-line px-5 py-4">
-                <div className="flex flex-col gap-3">
-                  <input
-                    value={customerName}
-                    onChange={(event) => setCustomerName(event.target.value)}
-                    placeholder="Nombre para el pedido"
-                    className="min-h-11 rounded-full border border-line bg-surface px-4 py-3 text-sm text-text outline-none"
-                  />
-                  <input
-                    value={customerPhone}
-                    onChange={(event) => setCustomerPhone(event.target.value)}
-                    placeholder="Numero de telefono"
-                    inputMode="tel"
-                    className="min-h-11 rounded-full border border-line bg-surface px-4 py-3 text-sm text-text outline-none"
-                  />
-
-                  <div className="rounded-card border border-line bg-surface p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-text">Propina</p>
-                        <p className="text-sm text-muted">
-                          Ajusta el porcentaje para este pedido
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-brand/10 px-3 py-1 text-sm font-semibold text-brand">
-                        {tipPercent}%
-                      </span>
+                <div className="space-y-6">
+                  <section className="space-y-3">
+                    <div>
+                      <p className="text-sm uppercase tracking-[0.25em] text-brand">Productos</p>
+                      <h3 className="mt-2 text-2xl font-semibold text-text">
+                        Revisa tu pedido
+                      </h3>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {[0, 10, 15, 20].map((preset) => (
-                        <button
-                          key={preset}
-                          type="button"
-                          onClick={() => setTipPercent(preset)}
-                          className={[
-                            "inline-flex min-h-10 items-center justify-center rounded-full px-4 py-2 text-sm font-semibold",
-                            tipPercent === preset
-                              ? "bg-brand text-white"
-                              : "border border-line text-text"
-                          ].join(" ")}
+                    <div className="space-y-3">
+                      {cart.map((item) => (
+                        <article
+                          key={item.id}
+                          className="rounded-card border border-line bg-surface p-4"
                         >
-                          {preset}%
-                        </button>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-text">{item.name}</p>
+                              {item.selectedModifiers.length > 0 && (
+                                <p className="mt-1 text-sm text-muted">
+                                  {item.selectedModifiers
+                                    .map((modifier) =>
+                                      modifier.optionNames?.length
+                                        ? `${modifier.modifierName}: ${modifier.optionNames.join(", ")}`
+                                        : null
+                                    )
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </p>
+                              )}
+                              <p className="mt-2 text-sm font-semibold text-brand">
+                                {currency(item.unitPrice)} c/u
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => removeFromCart(item.id)}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+                              aria-label={`Eliminar ${item.name}`}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+
+                          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => updateCartItemQuantity(item.id, item.quantity - 1)}
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+                              >
+                                <Minus size={16} />
+                              </button>
+                              <span className="min-w-8 text-center font-semibold text-text">
+                                {item.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateCartItemQuantity(item.id, item.quantity + 1)}
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+                              >
+                                <Plus size={16} />
+                              </button>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => openCartEditor(item.id)}
+                                className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                              >
+                                Editar
+                              </button>
+                              <p className="font-semibold text-text">
+                                {currency(item.unitPrice * item.quantity)}
+                              </p>
+                            </div>
+                          </div>
+                        </article>
                       ))}
+                    </div>
+                  </section>
+
+                  <section className="space-y-3">
+                    <div>
+                      <p className="text-sm uppercase tracking-[0.25em] text-brand">Datos</p>
+                      <h3 className="mt-2 text-2xl font-semibold text-text">
+                        Completa tu pedido
+                      </h3>
                     </div>
 
                     <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={tipPercent}
-                      onChange={(event) => setTipPercent(Number(event.target.value))}
-                      className="mt-4 w-full accent-[rgb(var(--brand))]"
+                      value={customerName}
+                      onChange={(event) => setCustomerName(event.target.value)}
+                      placeholder="Nombre para el pedido"
+                      className="min-h-11 w-full rounded-full border border-line bg-surface px-4 py-3 text-sm text-text outline-none"
+                    />
+                    <input
+                      value={customerPhone}
+                      onChange={(event) => setCustomerPhone(event.target.value)}
+                      placeholder="Numero de telefono"
+                      inputMode="tel"
+                      className="min-h-11 w-full rounded-full border border-line bg-surface px-4 py-3 text-sm text-text outline-none"
+                    />
+                    <textarea
+                      value={orderNote}
+                      onChange={(event) => setOrderNote(event.target.value)}
+                      rows={1}
+                      placeholder="Nota general para el restaurante"
+                      className="min-h-11 max-h-11 w-full resize-none overflow-hidden rounded-full border border-line bg-surface px-4 py-3 text-sm text-text outline-none placeholder:text-muted"
                     />
 
-                    <div className="mt-4 space-y-2 text-sm text-text">
-                      <div className="flex items-center justify-between">
-                        <span>Subtotal</span>
-                        <span>{currency(cartTotal)}</span>
+                    <div className="rounded-card border border-line bg-surface p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-text">Propina</p>
+                          <p className="text-sm text-muted">
+                            Ajusta el porcentaje para este pedido
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-brand/10 px-3 py-1 text-sm font-semibold text-brand">
+                          {tipPercent}%
+                        </span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span>Propina</span>
-                        <span>{currency(tipAmount)}</span>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {[0, 10, 15, 20].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setTipPercent(preset)}
+                            className={[
+                              "inline-flex min-h-10 items-center justify-center rounded-full px-4 py-2 text-sm font-semibold",
+                              tipPercent === preset
+                                ? "bg-brand text-white"
+                                : "border border-line text-text"
+                            ].join(" ")}
+                          >
+                            {preset}%
+                          </button>
+                        ))}
                       </div>
-                      <div className="flex items-center justify-between font-semibold">
-                        <span>Total</span>
-                        <span>{currency(orderTotal)}</span>
+
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={tipPercent}
+                        onChange={(event) => setTipPercent(Number(event.target.value))}
+                        className="mt-4 w-full accent-[rgb(var(--brand))]"
+                      />
+
+                      <div className="mt-4 space-y-2 text-sm text-text">
+                        <div className="flex items-center justify-between">
+                          <span>Subtotal</span>
+                          <span>{currency(cartTotal)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Propina</span>
+                          <span>{currency(tipAmount)}</span>
+                        </div>
+                        <div className="flex items-center justify-between font-semibold">
+                          <span>Total</span>
+                          <span>{currency(orderTotal)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <button
-                      type="button"
-                      onClick={clearCart}
-                      className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
-                    >
-                      Vaciar carrito
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void submitOrder()}
-                      disabled={
-                        !customerName.trim() ||
-                        !customerPhone.trim() ||
-                        !activeBranch.isOpen ||
-                        submitState === "sending"
-                      }
-                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
-                    >
-                      {submitState === "sending" ? (
-                        <span className="inline-flex items-center gap-2">
-                          <LoaderCircle size={16} className="animate-spin" />
-                          Enviando pedido...
-                        </span>
-                      ) : activeBranch.isOpen
-                        ? `Enviar pedido ${currency(orderTotal)}`
-                        : "Sucursal cerrada"}
-                    </button>
-                  </div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <button
+                        type="button"
+                        onClick={clearCart}
+                        className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+                      >
+                        Vaciar carrito
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void submitOrder()}
+                        disabled={
+                          !customerName.trim() ||
+                          !customerPhone.trim() ||
+                          !activeBranchOpen ||
+                          submitState === "sending"
+                        }
+                        className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
+                      >
+                        {submitState === "sending" ? (
+                          <span className="inline-flex items-center gap-2">
+                            <LoaderCircle size={16} className="animate-spin" />
+                            Enviando pedido...
+                          </span>
+                        ) : activeBranchOpen
+                          ? `Enviar pedido ${currency(orderTotal)}`
+                          : "Sucursal cerrada"}
+                      </button>
+                    </div>
 
-                  {submitState === "error" && submitMessage && (
-                    <p className="text-sm font-medium text-danger">{submitMessage}</p>
-                  )}
+                    {submitState === "error" && submitMessage && (
+                      <p className="text-sm font-medium text-danger">{submitMessage}</p>
+                    )}
 
-                  {!activeBranch.isOpen && (
-                    <p className="text-sm font-medium text-danger">
-                      Esta sucursal está cerrada. Puedes revisar tu carrito, pero no enviarlo.
-                    </p>
-                  )}
+                    {!activeBranchOpen && (
+                      <div className="space-y-3 rounded-card border border-danger/20 bg-danger/5 p-4 text-center">
+                        <p className="text-sm font-medium text-danger">
+                          Esta sucursal está cerrada. Puedes revisar el menú y tu carrito, pero no enviar pedidos por ahora.
+                        </p>
+                        {whatsappHref && (
+                          <a
+                            href={whatsappHref}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-4 py-3 text-center text-sm font-semibold text-white"
+                          >
+                            <MessageCircle size={16} />
+                            Mandar mensaje por WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </section>
                 </div>
               </div>
             </aside>
@@ -1028,22 +1153,128 @@ export function CustomerShell() {
         </div>
       )}
 
-      {editingCartItem && editingProduct && (
+      {trackingOpen && activeOrder && (
+        <div className="fixed inset-0 z-[65] bg-black/55 p-4 backdrop-blur-sm">
+          <div className="mx-auto flex h-full max-w-2xl items-end md:items-center">
+            <div className="max-h-[88vh] w-full overflow-y-auto rounded-shell border border-line bg-panel p-5 shadow-glow md:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.25em] text-brand">Seguimiento</p>
+                  <h3 className="mt-2 text-2xl font-semibold text-text">
+                    {orderStatusLabels[activeOrder.status]}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTrackingOpen(false)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-text"
+                  aria-label="Cerrar seguimiento del pedido"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-brand/10 px-3 py-2 text-sm font-semibold text-brand">
+                    Pedido #{activeOrder.id.slice(-6).toUpperCase()}
+                  </span>
+                  {shouldRecommendWhatsapp && whatsappHref && (
+                    <a
+                      href={whatsappHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-4 py-3 text-sm font-semibold text-white"
+                    >
+                      <MessageCircle size={16} />
+                      Mandar mensaje al restaurante
+                    </a>
+                  )}
+                </div>
+
+                {activeOrder.statusMessage && (
+                  <div className="rounded-card border border-line bg-surface p-4">
+                    <p className="text-center text-sm text-text">{activeOrder.statusMessage}</p>
+                  </div>
+                )}
+
+                {activeOrderCountdownLabel && (
+                  <div className="rounded-card border border-brand/30 bg-brand/10 p-4">
+                    <p className="text-center text-sm font-semibold text-brand">{activeOrderCountdownLabel}</p>
+                  </div>
+                )}
+
+                <div className="grid gap-3 md:grid-cols-4">
+                  {[
+                    { key: "new", label: "Recibido", icon: ShoppingBag },
+                    { key: "preparing", label: "En cocina", icon: Clock3 },
+                    { key: "ready", label: "Listo", icon: PackageCheck },
+                    { key: "delivered", label: "Entregado", icon: CheckCircle2 }
+                  ].map((step) => {
+                    const Icon = step.icon;
+                    const activeIndex = ["new", "preparing", "ready", "delivered", "rejected"].indexOf(
+                      activeOrder.status
+                    );
+                    const currentIndex = ["new", "preparing", "ready", "delivered"].indexOf(step.key);
+                    const isActive =
+                      activeOrder.status === "rejected" ? step.key === "new" : currentIndex <= activeIndex;
+
+                    return (
+                      <div
+                        key={step.key}
+                        className={[
+                          "rounded-card border p-4",
+                          isActive ? "border-brand bg-brand/10" : "border-line bg-surface"
+                        ].join(" ")}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={[
+                              "grid h-10 w-10 place-items-center rounded-full",
+                              isActive ? "bg-brand text-white" : "bg-panel text-muted"
+                            ].join(" ")}
+                          >
+                            <Icon size={18} />
+                          </div>
+                          <p className="text-sm font-semibold text-text">{step.label}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {activeOrder.status === "rejected" && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={handleDismissRejectedOrder}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-line px-4 py-3 text-center text-sm font-semibold text-text"
+                    >
+                      Borrar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRetryRejectedOrder}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-brand px-4 py-3 text-center text-sm font-semibold text-white"
+                    >
+                      Volver a pedir
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingProduct && (
         <div className="fixed inset-0 z-[60] bg-black/55 p-4 backdrop-blur-sm">
           <div className="mx-auto flex h-full max-w-2xl items-end md:items-center">
             <div
               ref={editorPanelRef}
               className="max-h-[88vh] w-full overflow-y-auto rounded-shell border border-line bg-panel p-5 shadow-glow md:max-w-xl md:p-6"
             >
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={closeEditor}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
-                >
-                  <ArrowLeft size={16} />
-                  Volver al carrito
-                </button>
+              <div className="flex items-center justify-end">
                 <button
                   type="button"
                   onClick={closeEditor}
@@ -1055,8 +1286,18 @@ export function CustomerShell() {
               </div>
 
               <div className="mt-5">
+                {editingProduct.imageUrl && (
+                  <div className="relative mb-4 h-52 overflow-hidden rounded-card bg-surface">
+                    <Image
+                      src={editingProduct.imageUrl}
+                      alt={editingProduct.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
                 <h3 className="text-2xl font-semibold text-text">{editingProduct.name}</h3>
-                <p className="mt-2 text-sm text-muted">{editingProduct.description}</p>
+                <p className="mt-1.5 text-sm text-muted">{editingProduct.description}</p>
                 <p className="mt-3 text-sm font-semibold text-brand">
                   Base {currency(editorBasePrice)}
                 </p>
@@ -1123,18 +1364,6 @@ export function CustomerShell() {
                       </button>
                     </div>
                   </div>
-
-                  <label className="mt-4 block">
-                    <span className="text-sm font-medium text-text">Nota para el restaurante</span>
-                    <textarea
-                      value={editorNote}
-                      onChange={(event) => setEditorNote(event.target.value)}
-                      rows={3}
-                      placeholder="Salsa aparte, sin cebolla, término, etc."
-                      className="mt-2 w-full rounded-card border border-line bg-surface px-4 py-3 text-sm text-text outline-none placeholder:text-muted"
-                    />
-                  </label>
-
                   <div className="mt-4 rounded-card bg-surface px-4 py-3 text-sm text-text">
                     <div className="flex items-center justify-between">
                       <span>Extras</span>
@@ -1152,20 +1381,13 @@ export function CustomerShell() {
                 <p className="mt-4 text-sm font-medium text-danger">{editorError}</p>
               )}
 
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={closeEditor}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
-                >
-                  Regresar
-                </button>
+              <div className="mt-5 flex">
                 <button
                   type="button"
                   onClick={saveCartItemChanges}
-                  className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white"
                 >
-                  Guardar cambios {currency(editorTotal)}
+                  {editingCartItem ? "Guardar cambios" : "Agregar al carrito"} {currency(editorTotal)}
                 </button>
               </div>
             </div>
@@ -1176,7 +1398,7 @@ export function CustomerShell() {
       {submitState === "success" && (
         <div className="fixed inset-0 z-[70] bg-black/45 p-4 backdrop-blur-sm">
           <div className="mx-auto flex h-full max-w-lg items-center">
-            <div className="w-full rounded-shell border border-line bg-panel p-6 shadow-glow">
+            <div className="w-full rounded-shell border border-line bg-panel p-7 shadow-glow">
               <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-success/15 text-success">
                 <CheckCircle2 size={28} />
               </div>

@@ -109,7 +109,7 @@ export function OrderTracker({
                       ))}
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-2">
+                    <div className="mt-4 flex flex-wrap justify-center gap-2">
                       {order.status === "new" && (
                         <>
                           <button

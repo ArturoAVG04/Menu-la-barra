@@ -86,6 +86,7 @@ export type Order = {
   id: string;
   sucursalID: string;
   customerName: string;
+  orderNote?: string;
   tableLabel?: string;
   items: CartItem[];
   total: number;

@@ -23,6 +23,7 @@ type AppStateValue = {
   updateCartItemQuantity: (itemId: string, quantity: number) => void;
   removeFromCart: (itemId: string) => void;
   clearCart: () => void;
+  restoreCart: (items: CartItem[]) => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -198,6 +199,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         setCart((current) => current.filter((entry) => entry.id !== itemId));
       },
       clearCart: () => setCart([]),
+      restoreCart: (items) => {
+        if (!activeBranch) return;
+        setCartBranchId(activeBranch.id);
+        setCart(items);
+      },
       login: async (email, password) => {
         const credential = await signInWithEmailAndPassword(auth, email, password);
         await credential.user.getIdToken(true);
