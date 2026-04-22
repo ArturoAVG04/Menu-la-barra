@@ -67,7 +67,7 @@ const initialProduct: Product = {
   modifiers: []
 };
 
-const initialModifier: ModifierTemplate = {
+const initialModifier: any = {
   id: "",
   name: "",
   type: "multiple",
@@ -277,7 +277,7 @@ export function AdminProductForm({
   async function moveModifier(modifierId: string, direction: "up" | "down") {
     if (!branch) return;
 
-    const sortedModifiers = [...modifiers].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    const sortedModifiers = [...modifiers].sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     const index = sortedModifiers.findIndex((m) => m.id === modifierId);
     const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (index < 0 || targetIndex < 0 || targetIndex >= sortedModifiers.length) return;
@@ -288,12 +288,12 @@ export function AdminProductForm({
 
     await Promise.all(
       reordered.map(async (mod, orderIndex) => {
-        const updated = { ...mod, sortOrder: orderIndex + 1 };
+        const updated = { ...mod, sortOrder: orderIndex + 1 } as any;
         await saveModifier(branch.id, updated);
         await syncModifierInProducts(mod.id, (item) => ({
           ...item,
           modifiers: item.modifiers.map((m) => (m.id === mod.id ? updated : m))
-        }));
+        }) as any);
       })
     );
     onNotify("Orden de personalizaciones actualizado");
@@ -305,11 +305,11 @@ export function AdminProductForm({
 
     setIsSavingModifier(true);
     try {
-      const cleanModifier: ModifierTemplate = {
-        ...modifierDraft,
+      const cleanModifier: any = {
+        ...(modifierDraft as any),
         id: modifierDraft.id || crypto.randomUUID(),
         sortOrder: modifierDraft.id 
-          ? (modifiers.find(m => m.id === modifierDraft.id)?.sortOrder || 0)
+          ? ((modifiers.find(m => m.id === modifierDraft.id) as any)?.sortOrder || 0)
           : modifiers.length + 1,
         options: modifierDraft.options
           .filter((option) => option.name.trim())
@@ -804,7 +804,7 @@ export function AdminProductForm({
                     <div className="grid gap-3">
                       {modifiers.length ? (
                         [...modifiers]
-                          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                          .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
                           .map((modifier) => {
                           const checked = selectedModifierIds.has(modifier.id);
                           return (
@@ -1279,12 +1279,12 @@ export function AdminProductForm({
               <div className="grid gap-4 sm:grid-cols-2">
                 {modifiers.length ? (
                   [...modifiers]
-                    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                    .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
                     .map((modifier, index, array) => (
                     <div key={modifier.id} className="group relative rounded-card border border-line bg-surface p-4 transition hover:border-brand/40">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="font-semibold text-text">{modifier.name} <span className="text-[10px] text-brand ml-1">#{modifier.sortOrder || index + 1}</span></p>
+                          <p className="font-semibold text-text">{modifier.name} <span className="text-[10px] text-brand ml-1">#{(modifier as any).sortOrder || index + 1}</span></p>
                           <p className="text-[10px] text-muted uppercase tracking-wider">{modifier.type === 'single' ? 'Única' : 'Múltiple'}</p>
                         </div>
                         <div className="flex gap-1">
