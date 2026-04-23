@@ -120,6 +120,7 @@ export function CustomerShell() {
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [currentTimestamp, setCurrentTimestamp] = useState(() => Date.now());
   const [addNotice, setAddNotice] = useState("");
+  const [showDetailsConfirm, setShowDetailsConfirm] = useState(false);
   const editorPanelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -266,7 +267,7 @@ export function CustomerShell() {
     [activeBranch?.whatsapp]
   );
   const instagramHref = useMemo(
-    () => getSocialHref((activeBranch as any)?.instagram, "instagram"),
+    () => getSocialHref(activeBranch?.instagram, "instagram"),
     [activeBranch]
   );
   const shouldRecommendWhatsapp =
@@ -301,7 +302,7 @@ export function CustomerShell() {
   const editorSelectionsDetail = useMemo(() => {
     if (!editingProduct) return [];
 
-    return [...(editingProduct.modifiers as any[])]
+    return [...editingProduct.modifiers]
       .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
       .map((modifier) => {
       const selectedIds = editorSelections[modifier.id] ?? [];
@@ -467,14 +468,19 @@ export function CustomerShell() {
     closeEditor();
   }
 
+  function handleSubmitClick() {
+    if (!activeBranch || !activeBranchOpen || !cart.length || submitState === "sending") return;
+
+    if (!customerName.trim() || !customerPhone.trim()) {
+      setShowDetailsConfirm(true);
+      return;
+    }
+
+    void submitOrder();
+  }
+
   async function submitOrder() {
-    if (
-      !activeBranch ||
-      !activeBranchOpen ||
-      !cart.length ||
-      !customerName.trim() ||
-      !customerPhone.trim()
-    ) {
+    if (!activeBranch || !activeBranchOpen || !cart.length) {
       return;
     }
 
@@ -1097,10 +1103,8 @@ export function CustomerShell() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => void submitOrder()}
+                        onClick={handleSubmitClick}
                         disabled={
-                          !customerName.trim() ||
-                          !customerPhone.trim() ||
                           !activeBranchOpen ||
                           submitState === "sending"
                         }
@@ -1298,7 +1302,7 @@ export function CustomerShell() {
               </div>
 
               <div className="mt-5 space-y-4">
-                {[...(editingProduct.modifiers as any[])]
+                {[...editingProduct.modifiers]
                   .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
                   .map((modifier) => (
                   <div key={modifier.id} className="rounded-card border border-line p-4">
@@ -1418,6 +1422,39 @@ export function CustomerShell() {
                   Seguir explorando
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDetailsConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-shell border border-line bg-panel p-6 shadow-glow text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand/10 text-brand">
+              <MessageCircle size={28} />
+            </div>
+            <h3 className="text-xl font-bold text-text">¿Quieres agregar tus datos?</h3>
+            <p className="mt-3 text-sm text-muted leading-relaxed">
+              Te recomendamos agregar tu nombre y teléfono para que el restaurante pueda contactarte y darte un mejor seguimiento de tu pedido.
+            </p>
+            <div className="mt-8 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDetailsConfirm(false)}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-bold text-white shadow-glow"
+              >
+                Escribir mis datos
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDetailsConfirm(false);
+                  void submitOrder();
+                }}
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-5 py-3 text-sm font-semibold text-muted hover:text-text transition"
+              >
+                Pedir sin datos
+              </button>
             </div>
           </div>
         </div>

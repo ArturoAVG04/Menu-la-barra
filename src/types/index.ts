@@ -4,6 +4,7 @@ export type Branch = {
   slug: string;
   address: string;
   whatsapp?: string;
+  instagram?: string;
   isPrimary?: boolean;
   orderSettings?: {
     baseItemThreshold: number;
@@ -41,6 +42,7 @@ export type ProductModifier = {
   name: string;
   type: "single" | "multiple";
   required: boolean;
+  sortOrder?: number;
   options: ModifierOption[];
 };
 
