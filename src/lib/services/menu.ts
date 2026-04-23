@@ -163,6 +163,10 @@ export async function updateOrderStatus(
   });
 }
 
+export async function deleteOrder(orderId: string) {
+  return deleteDoc(doc(db, "orders", orderId));
+}
+
 export async function saveProduct(branchId: string, product: Product) {
   const ref = doc(db, "sucursales", branchId, "products", product.id);
   return setDoc(ref, product, { merge: true });

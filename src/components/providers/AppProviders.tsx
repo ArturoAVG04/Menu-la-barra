@@ -61,6 +61,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>("guest");
   const [authReady, setAuthReady] = useState(false);
+  const [cartLoaded, setCartLoaded] = useState(false);
 
   useEffect(() => {
     const storedBranch = window.localStorage.getItem(ACTIVE_BRANCH_STORAGE_KEY);
@@ -95,6 +96,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     const storedCart = readStoredCart(activeBranch.id);
     setCart(storedCart);
     setCartBranchId(activeBranch.id);
+    setCartLoaded(true);
   }, [activeBranch?.id]);
 
   useEffect(() => {
@@ -120,10 +122,10 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   }, [activeBranch, branches]);
 
   useEffect(() => {
-    if (!cartBranchId) return;
+    if (!cartBranchId || !cartLoaded) return;
     window.localStorage.setItem(CART_BRANCH_STORAGE_KEY, cartBranchId);
     window.localStorage.setItem(cartStorageKey(cartBranchId), JSON.stringify(cart));
-  }, [cart, cartBranchId]);
+  }, [cart, cartBranchId, cartLoaded]);
 
   useEffect(() => {
     if (activeBranch || !branches.length) return;

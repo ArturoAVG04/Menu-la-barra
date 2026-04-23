@@ -22,6 +22,7 @@ import { useAppState } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import {
   deleteBranch,
+  deleteOrder,
   saveBranch,
   subscribeBranches,
   subscribeOrders,
@@ -165,7 +166,7 @@ export function AdminShell() {
         slug: branchDraft.slug.trim() || branchDraft.name.toLowerCase().replaceAll(" ", "-"),
         address: branchDraft.address.trim(),
         whatsapp: branchDraft.whatsapp.trim(),
-        instagram: (branchDraft as any).instagram?.trim() || "",
+        instagram: branchDraft.instagram?.trim() || "",
         isPrimary: branchDraft.isPrimary,
         orderSettings: defaultOrderSettings(),
         weeklyHours: defaultSchedule(),
@@ -245,6 +246,14 @@ export function AdminShell() {
       statusMessage: "Pedido entregado"
     });
     notify("Pedido entregado");
+  }
+
+  async function handleDeleteOrder(order: Order) {
+    try {
+      await deleteOrder(order.id);
+    } catch (error) {
+      console.error("Error al eliminar pedido:", error);
+    }
   }
 
   function updateScheduleSlot(
@@ -612,7 +621,7 @@ export function AdminShell() {
                       placeholder="WhatsApp"
                     />
                     <input
-                      value={(branchEditor as any).instagram || ""}
+                      value={branchEditor.instagram || ""}
                       onChange={(event) =>
                         setBranchEditor((current) =>
                           current ? { ...current, instagram: event.target.value } : current
@@ -897,11 +906,12 @@ export function AdminShell() {
           {section === "orders" && (
             selectedBranch ? (
               <OrderTracker
-                orders={orders.filter((order) => order.status !== "delivered")}
+                orders={orders}
                 onAccept={handleAcceptOrder}
                 onReject={handleRejectOrder}
                 onReady={handleReadyOrder}
                 onDelivered={handleDeliveredOrder}
+                onDelete={handleDeleteOrder}
               />
             ) : (
               <section className="rounded-shell border border-dashed border-line bg-panel p-6 text-center text-sm text-muted">
@@ -961,7 +971,7 @@ export function AdminShell() {
                 placeholder="WhatsApp"
               />
               <input
-                value={(branchDraft as any).instagram || ""}
+                value={branchDraft.instagram || ""}
                 onChange={(event) =>
                   setBranchDraft((current) => ({ ...current, instagram: event.target.value }))
                 }

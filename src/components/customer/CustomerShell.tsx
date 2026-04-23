@@ -45,13 +45,13 @@ const orderStatusLabels = {
 
 function WhatsAppLogo({ className }: { className?: string }) {
   return (
-    <svg 
-      viewBox="0 0 448 512" 
-      fill="currentColor" 
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
       className={className}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-190.9 101.5-190.9 226.9 0 43.2 10.8 85.5 31.5 122.5L32 501.7l133.2-34.7c35.4 19.3 75.2 29.5 115.4 29.5 125.4 0 227.3-101.9 227.3-227.3.1-59.2-23-114.9-64.8-156.9zm-157 375.4c-36.6 0-72.5-9.8-103.6-28.4l-7.4-4.4-77.1 20.1 20.4-75.1-4.8-7.7c-20.4-32.4-31.2-70.1-31.2-108.9 0-113.8 102.3-195 210.6-195 54.3 0 105.3 21.2 143.6 59.5s59.5 89.5 59.5 143.8c0 113.8-102.4 195.1-210.6 195.1zm115.7-158.4c-6.3-3.1-37.5-18.5-43.3-20.6-5.8-2.1-10.1-3.1-14.3 3.1-4.2 6.3-16.4 20.6-20.1 24.8-3.7 4.2-7.4 4.8-13.7 1.6s-26.8-9.9-51-31.5c-18.8-16.8-31.6-37.6-35.3-43.9-3.7-6.3-.4-9.8 2.8-12.9 2.9-2.8 6.3-7.4 9.5-11.1 3.2-3.7 4.2-6.3 6.3-10.6 2.1-4.2 1.1-7.9-.5-11.1-1.6-3.1-14.3-34.4-19.5-46.6-5.1-12.2-10.7-10.5-14.3-10.5-3.1 0-7.4-.5-11.6-.5-4.2 0-11.1 1.6-17 7.9-5.8 6.3-22.2 21.7-22.2 52.9s22.8 61.3 25.9 65.6c3.2 4.2 44.9 34.3 108.8 61.8 15.2 6.5 27 10.4 36.3 13.1 15.6 4.9 29.8 4.2 41.1 2.5 12.6-1.9 37.5-15.3 42.8-30.1s5.3-27.5 3.7-30.1c-1.5-2.8-5.7-4.2-12.1-7.4z" />
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
     </svg>
   );
 }
@@ -211,14 +211,20 @@ export function CustomerShell() {
 
   useEffect(() => {
     if (!activeOrder) return;
+    
     if (lastNotifiedStatus === null) {
       setLastNotifiedStatus(activeOrder.status);
+      if (activeOrder.status !== "delivered") {
+        setTrackingOpen(true);
+      }
       return;
     }
     if (activeOrder.status === lastNotifiedStatus) return;
 
     setLastNotifiedStatus(activeOrder.status);
-    if (activeOrder.status !== "new" && activeOrder.status !== "delivered") {
+    
+    // Always open tracking if there's an active non-delivered order on mount or update
+    if (activeOrder.status !== "delivered") {
       setTrackingOpen(true);
     }
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
@@ -253,12 +259,14 @@ export function CustomerShell() {
       if (!product.available) return false;
       if (!term) return true;
 
-      return (
-        product.name.toLowerCase().includes(term) ||
-        product.description.toLowerCase().includes(term)
-      );
+      const category = categories.find((c) => c.id === product.categoryId);
+      const matchesName = product.name.toLowerCase().includes(term);
+      const matchesDescription = product.description.toLowerCase().includes(term);
+      const matchesCategory = category?.name.toLowerCase().includes(term);
+
+      return matchesName || matchesDescription || matchesCategory;
     });
-  }, [products, search]);
+  }, [products, search, categories]);
 
   const tipAmount = useMemo(() => (cartTotal * tipPercent) / 100, [cartTotal, tipPercent]);
   const orderTotal = cartTotal + tipAmount;
@@ -681,7 +689,9 @@ export function CustomerShell() {
       </header>
 
       <nav className="scrollbar-subtle flex gap-2 overflow-x-auto whitespace-nowrap pb-2 lg:gap-3">
-        {categories.map((category) => (
+        {categories
+          .filter((category) => products.some((p) => p.categoryId === category.id))
+          .map((category) => (
           <a
             key={category.id}
             href={`#category-${category.id}`}
