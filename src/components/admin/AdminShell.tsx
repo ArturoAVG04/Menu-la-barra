@@ -681,7 +681,7 @@ export function AdminShell() {
                                 : current
                             )
                           }
-                          className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                          className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
                         />
                       </label>
                       <label className="space-y-2 text-sm text-text">
@@ -703,7 +703,7 @@ export function AdminShell() {
                                 : current
                             )
                           }
-                          className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                          className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
                         />
                       </label>
                       <label className="space-y-2 text-sm text-text">
@@ -725,7 +725,7 @@ export function AdminShell() {
                                 : current
                             )
                           }
-                          className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                          className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
                         />
                       </label>
                       <label className="space-y-2 text-sm text-text">
@@ -747,7 +747,7 @@ export function AdminShell() {
                                 : current
                             )
                           }
-                          className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                          className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
                         />
                       </label>
                     </div>
@@ -786,7 +786,7 @@ export function AdminShell() {
                             )}
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
+                          <div className="flex gap-2 overflow-x-auto whitespace-nowrap scrollbar-subtle pb-2">
                             {WEEK_DAYS.map((day) => {
                               const selected = slot.days.includes(day.label);
 
@@ -796,7 +796,7 @@ export function AdminShell() {
                                   type="button"
                                   onClick={() => toggleScheduleDay(index, day.label)}
                                   className={[
-                                    "inline-flex min-h-[44px] items-center justify-center rounded-card border px-3 py-3 text-sm font-semibold transition",
+                                    "inline-flex shrink-0 min-h-[44px] min-w-[4rem] items-center justify-center rounded-card border px-3 py-3 text-sm font-semibold transition",
                                     selected
                                       ? "border-brand bg-brand text-white"
                                       : "border-line bg-panel text-text hover:border-brand/40"

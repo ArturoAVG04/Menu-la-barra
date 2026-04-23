@@ -23,7 +23,7 @@ export function MenuCard({ product, onSelect }: MenuCardProps) {
           src={product.imageUrl || "https://i.ibb.co/6w0pJ6L/placeholder-food.png"}
           alt={product.name}
           fill
-          className="object-cover transition duration-500 group-hover:scale-105"
+          className="object-cover object-center transition duration-500 group-hover:scale-105"
         />
         {!product.available && (
           <div className="absolute inset-0 grid place-items-center bg-surface/85 text-sm font-semibold text-danger">
@@ -35,7 +35,7 @@ export function MenuCard({ product, onSelect }: MenuCardProps) {
       <div className="flex flex-1 flex-col justify-between p-4">
         <div className="space-y-0.5">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="line-clamp-2 min-h-[2.65rem] text-base font-semibold leading-[1.25] text-text md:text-lg">
+            <h3 className="line-clamp-2 break-words min-h-[2.65rem] text-base font-semibold leading-[1.25] text-text md:text-lg">
               {product.name}
             </h3>
             <span className="shrink-0 rounded-full bg-brand/10 px-3 py-1 text-sm font-semibold text-brand">
@@ -43,7 +43,7 @@ export function MenuCard({ product, onSelect }: MenuCardProps) {
             </span>
           </div>
 
-          <p className="line-clamp-2 min-h-[2.2rem] text-sm leading-[1.3] text-muted">
+          <p className="line-clamp-2 break-words min-h-[2.2rem] text-sm leading-[1.3] text-muted">
             {product.description}
           </p>
         </div>

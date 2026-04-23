@@ -130,14 +130,14 @@ export function CustomerShell() {
       trackingOpen ||
       Boolean(editingCartItemId) ||
       Boolean(editorProductId);
-    const previousOverflow = document.body.style.overflow;
-
     if (shouldLock) {
       document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
     }
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = "";
     };
   }, [branchPickerOpen, cartOpen, editingCartItemId, editorProductId, trackingOpen]);
 
@@ -600,7 +600,7 @@ export function CustomerShell() {
               ? `linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.45)), url(${activeBranch.menuCoverImageUrl})`
               : "linear-gradient(135deg, rgb(var(--brand) / 0.88), rgb(var(--accent) / 0.72))",
             backgroundSize: "cover",
-            backgroundPosition: "center"
+            backgroundPosition: "center center"
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-brand/10 via-transparent to-accent/15" />
@@ -835,7 +835,7 @@ export function CustomerShell() {
                 <div>
                   <p className="text-sm uppercase tracking-[0.25em] text-brand">Sucursales</p>
                   <h2 className="mt-2 text-2xl font-semibold text-text">
-                    Cambia sin salir del menú
+                    Selecciona tu sucursal
                   </h2>
                   <p className="mt-2 text-center text-sm text-muted md:text-left">
                     Tu carrito se mantiene separado por sucursal para que no se mezclen pedidos.
@@ -875,7 +875,7 @@ export function CustomerShell() {
                             ? {
                                 backgroundImage: `linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.58)), url(${branch.coverImageUrl})`,
                                 backgroundSize: "cover",
-                                backgroundPosition: "center"
+                                backgroundPosition: "center center"
                               }
                             : {
                                 background:
@@ -950,7 +950,7 @@ export function CustomerShell() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="font-semibold text-text">{item.name}</p>
+                              <p className="line-clamp-2 break-words font-semibold text-text">{item.name}</p>
                               {item.selectedModifiers.length > 0 && (
                                 <p className="mt-1 text-sm text-muted">
                                   {item.selectedModifiers
@@ -1300,7 +1300,7 @@ export function CustomerShell() {
                       src={editingProduct.imageUrl}
                       alt={editingProduct.name}
                       fill
-                      className="object-cover"
+                      className="object-cover object-center"
                     />
                   </div>
                 )}

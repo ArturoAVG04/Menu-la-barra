@@ -231,6 +231,100 @@ function CompactOrder({
   );
 }
 
+function HistoryOrder({
+  order,
+  allOrders,
+  onAccept,
+  onReject,
+  onReady,
+  onDelivered
+}: {
+  order: Order;
+  allOrders: Order[];
+  onAccept: (order: Order) => void;
+  onReject: (order: Order) => void;
+  onReady: (order: Order) => void;
+  onDelivered: (order: Order) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const dayNumber = getDayOrderNumber(order, allOrders);
+  const shortCode = order.id.slice(-6).toUpperCase();
+  const isRejected = order.status === "rejected";
+
+  return (
+    <article
+      className={[
+        "rounded-card border overflow-hidden",
+        isRejected ? "border-danger/20 bg-danger/5" : "border-line bg-surface"
+      ].join(" ")}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((c) => !c)}
+        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span
+            className={[
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+              isRejected ? "bg-danger/10 text-danger" : "bg-success/10 text-success"
+            ].join(" ")}
+          >
+            #{dayNumber}
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-text truncate">
+              {order.customerName || "Sin nombre"}
+            </p>
+            <p className="text-[10px] text-muted">
+              {shortCode} ·{" "}
+              {new Date(order.createdAt).toLocaleDateString("es-MX", {
+                day: "numeric",
+                month: "short"
+              })}{" "}
+              {new Date(order.createdAt).toLocaleTimeString("es-MX", {
+                hour: "2-digit",
+                minute: "2-digit"
+              })}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span
+            className={[
+              "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
+              isRejected ? "bg-danger/10 text-danger" : "bg-success/10 text-success"
+            ].join(" ")}
+          >
+            {isRejected ? "Rechazado" : "Entregado"}
+          </span>
+          <span className="text-xs font-semibold text-text">{currency(order.total)}</span>
+          <ChevronDown
+            size={14}
+            className={[
+              "text-muted transition-transform duration-200",
+              expanded ? "rotate-180" : ""
+            ].join(" ")}
+          />
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-line px-3 pb-3">
+          <OrderDetail
+            order={order}
+            allOrders={allOrders}
+            onAccept={onAccept}
+            onReject={onReject}
+            onReady={onReady}
+            onDelivered={onDelivered}
+          />
+        </div>
+      )}
+    </article>
+  );
+}
+
 export function OrderTracker({
   orders,
   onAccept,
@@ -383,54 +477,17 @@ export function OrderTracker({
 
           {historyOrders.length ? (
             <div className="space-y-2">
-              {historyOrders.map((order) => {
-                const dayNumber = getDayOrderNumber(order, orders);
-                const shortCode = order.id.slice(-6).toUpperCase();
-                const isRejected = order.status === "rejected";
-
-                return (
-                  <div
-                    key={order.id}
-                    className={[
-                      "flex items-center justify-between gap-3 rounded-card border px-3 py-3",
-                      isRejected ? "border-danger/20 bg-danger/5" : "border-line bg-surface"
-                    ].join(" ")}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className={[
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
-                        isRejected ? "bg-danger/10 text-danger" : "bg-success/10 text-success"
-                      ].join(" ")}>
-                        #{dayNumber}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-text truncate">
-                          {order.customerName || "Sin nombre"}
-                        </p>
-                        <p className="text-[10px] text-muted">
-                          {shortCode} · {new Date(order.createdAt).toLocaleDateString("es-MX", {
-                            day: "numeric",
-                            month: "short"
-                          })}{" "}
-                          {new Date(order.createdAt).toLocaleTimeString("es-MX", {
-                            hour: "2-digit",
-                            minute: "2-digit"
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={[
-                        "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
-                        isRejected ? "bg-danger/10 text-danger" : "bg-success/10 text-success"
-                      ].join(" ")}>
-                        {isRejected ? "Rechazado" : "Entregado"}
-                      </span>
-                      <span className="text-xs font-semibold text-text">{currency(order.total)}</span>
-                    </div>
-                  </div>
-                );
-              })}
+              {historyOrders.map((order) => (
+                <HistoryOrder
+                  key={order.id}
+                  order={order}
+                  allOrders={orders}
+                  onAccept={onAccept}
+                  onReject={onReject}
+                  onReady={onReady}
+                  onDelivered={onDelivered}
+                />
+              ))}
             </div>
           ) : (
             <div className="rounded-card border border-dashed border-line bg-surface p-6 text-center text-sm text-muted">

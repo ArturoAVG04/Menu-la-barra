@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown,
@@ -602,11 +603,25 @@ export function AdminProductForm({
           </label>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-card border border-line bg-surface p-4 text-sm text-muted">
-              {branch.coverImageUrl || "Sin imagen"}
+            <div className="overflow-hidden rounded-card border border-line bg-surface p-4 text-sm text-muted break-words">
+              {branch.coverImageUrl ? (
+                <div className="space-y-3">
+                  <div className="relative aspect-video w-full overflow-hidden rounded-card bg-panel border border-line">
+                    <Image src={branch.coverImageUrl} alt="Portada sucursal" fill className="object-cover" />
+                  </div>
+                  <p className="text-xs break-all">{branch.coverImageUrl}</p>
+                </div>
+              ) : "Sin imagen principal"}
             </div>
-            <div className="rounded-card border border-line bg-surface p-4 text-sm text-muted">
-              {branch.menuCoverImageUrl || "Sin imagen"}
+            <div className="overflow-hidden rounded-card border border-line bg-surface p-4 text-sm text-muted break-words">
+              {branch.menuCoverImageUrl ? (
+                <div className="space-y-3">
+                  <div className="relative aspect-video w-full overflow-hidden rounded-card bg-panel border border-line">
+                    <Image src={branch.menuCoverImageUrl} alt="Portada menú" fill className="object-cover" />
+                  </div>
+                  <p className="text-xs break-all">{branch.menuCoverImageUrl}</p>
+                </div>
+              ) : "Sin imagen de menú"}
             </div>
           </div>
         </section>
