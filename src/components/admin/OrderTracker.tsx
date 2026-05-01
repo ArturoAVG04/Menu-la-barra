@@ -9,7 +9,6 @@ import {
   ChevronDown,
   Clock3,
   PackageCheck,
-  Trash2,
   XCircle
 } from "lucide-react";
 
@@ -36,7 +35,6 @@ type OrderTrackerProps = {
   onReject: (order: Order) => void;
   onReady: (order: Order) => void;
   onDelivered: (order: Order) => void;
-  onDelete: (order: Order) => void;
 };
 
 function getDayOrderNumber(order: Order, allOrders: Order[]) {
@@ -330,8 +328,7 @@ export function OrderTracker({
   onAccept,
   onReject,
   onReady,
-  onDelivered,
-  onDelete
+  onDelivered
 }: OrderTrackerProps) {
   const [tab, setTab] = useState<"active" | "history">("active");
   const previousCount = useRef(orders.length);
@@ -348,20 +345,6 @@ export function OrderTracker({
       .filter((o) => now - o.createdAt < THREE_DAYS_MS)
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [orders]);
-
-  const expiredOrders = useMemo(() => {
-    const now = Date.now();
-    return orders.filter(
-      (o) => (o.status === "delivered" || o.status === "rejected") && now - o.createdAt >= THREE_DAYS_MS
-    );
-  }, [orders]);
-
-  // Auto-delete orders older than 3 days
-  useEffect(() => {
-    expiredOrders.forEach((order) => {
-      onDelete(order);
-    });
-  }, [expiredOrders, onDelete]);
 
   useEffect(() => {
     const newOrders = activeOrders.filter((o) => o.status === "new");

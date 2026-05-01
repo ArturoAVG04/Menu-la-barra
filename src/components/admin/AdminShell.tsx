@@ -22,11 +22,10 @@ import { useAppState } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import {
   deleteBranch,
-  deleteOrder,
   saveBranch,
   subscribeBranches,
   subscribeOrders,
-  updateOrderStatus
+  updateOrderStatusFromAdmin
 } from "@/lib/services/menu";
 import {
   WEEK_DAYS,
@@ -79,12 +78,19 @@ type Notice = {
 };
 
 type Section = "overview" | "business" | "menu" | "themes" | "orders";
+const NAV_ITEMS = [
+  { id: "orders", label: "Pedidos", icon: ClipboardList },
+  { id: "overview", label: "General", icon: Settings2 },
+  { id: "business", label: "Datos", icon: Store },
+  { id: "menu", label: "Menú", icon: LayoutGrid },
+  { id: "themes", label: "Temas", icon: Palette }
+] as const;
 
 export function AdminShell() {
   const { branches, currentUser, logout, setBranches } = useAppState();
   const { theme, toggleTheme } = useTheme();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [section, setSection] = useState<Section>("overview");
+  const [section, setSection] = useState<Section>("orders");
   const [adminBranchId, setAdminBranchId] = useState("");
   const [branchDraft, setBranchDraft] = useState(initialBranchDraft);
   const [branchEditor, setBranchEditor] = useState<Branch | null>(null);
@@ -209,10 +215,10 @@ export function AdminShell() {
   }
 
   async function handleAcceptOrder(order: Order) {
-    if (!selectedBranch) return;
+    if (!selectedBranch || !currentUser) return;
 
     const estimatedMinutes = getEstimatedMinutes(selectedBranch, order);
-    await updateOrderStatus(order.id, {
+    await updateOrderStatusFromAdmin(currentUser, order.id, {
       status: "preparing",
       estimatedMinutes,
       estimatedReadyAt: Date.now() + estimatedMinutes * 60_000,
@@ -223,7 +229,9 @@ export function AdminShell() {
   }
 
   async function handleRejectOrder(order: Order) {
-    await updateOrderStatus(order.id, {
+    if (!currentUser) return;
+
+    await updateOrderStatusFromAdmin(currentUser, order.id, {
       status: "rejected",
       statusMessage:
         "Tu pedido fue rechazado. Te recomendamos mandar mensaje al restaurante para revisar cualquier detalle."
@@ -232,7 +240,9 @@ export function AdminShell() {
   }
 
   async function handleReadyOrder(order: Order) {
-    await updateOrderStatus(order.id, {
+    if (!currentUser) return;
+
+    await updateOrderStatusFromAdmin(currentUser, order.id, {
       status: "ready",
       statusMessage:
         "Tu pedido está listo. Te recomendamos mandar mensaje al restaurante para coordinar cualquier detalle."
@@ -241,19 +251,13 @@ export function AdminShell() {
   }
 
   async function handleDeliveredOrder(order: Order) {
-    await updateOrderStatus(order.id, {
+    if (!currentUser) return;
+
+    await updateOrderStatusFromAdmin(currentUser, order.id, {
       status: "delivered",
       statusMessage: "Pedido entregado"
     });
     notify("Pedido entregado");
-  }
-
-  async function handleDeleteOrder(order: Order) {
-    try {
-      await deleteOrder(order.id);
-    } catch (error) {
-      console.error("Error al eliminar pedido:", error);
-    }
   }
 
   function updateScheduleSlot(
@@ -357,13 +361,7 @@ export function AdminShell() {
             "space-y-1 transition-all duration-300",
             !sidebarCollapsed ? "rounded-card border border-line bg-surface/40 p-1.5 shadow-inner" : "flex flex-col items-center gap-3"
           ].join(" ")}>
-            {[
-              { id: "overview", label: "General", icon: Settings2 },
-              { id: "business", label: "Datos", icon: Store },
-              { id: "menu", label: "Menú", icon: LayoutGrid },
-              { id: "themes", label: "Temas", icon: Palette },
-              { id: "orders", label: "Pedidos", icon: ClipboardList }
-            ].map((item) => {
+            {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active = section === item.id;
 
@@ -455,7 +453,7 @@ export function AdminShell() {
                 <Menu size={18} />
               </button>
               <h1 className="text-lg font-bold tracking-tight text-text">
-                {sidebarCollapsed || mobileDrawerOpen ? "La Barra" : (section === 'overview' ? 'La Barra' : 'Admin')}
+                {sidebarCollapsed || mobileDrawerOpen ? "La Barra" : "Admin"}
               </h1>
             </div>
 
@@ -911,7 +909,6 @@ export function AdminShell() {
                 onReject={handleRejectOrder}
                 onReady={handleReadyOrder}
                 onDelivered={handleDeliveredOrder}
-                onDelete={handleDeleteOrder}
               />
             ) : (
               <section className="rounded-shell border border-dashed border-line bg-panel p-6 text-center text-sm text-muted">

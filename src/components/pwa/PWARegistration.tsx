@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { getToken } from "firebase/messaging";
 
-import { getFirebaseVapidKey, getMessagingClient } from "@/lib/firebase/config";
+import { APP_SERVICE_WORKER_URL, getBrowserPushToken } from "@/lib/pwa/notifications";
+import { getFirebaseVapidKey } from "@/lib/firebase/config";
 
 export function PWARegistration() {
   useEffect(() => {
@@ -30,8 +30,7 @@ export function PWARegistration() {
       return;
     }
 
-    navigator.serviceWorker.register("/sw.js").catch(() => undefined);
-    navigator.serviceWorker.register("/firebase-messaging-sw.js").catch(() => undefined);
+    navigator.serviceWorker.register(APP_SERVICE_WORKER_URL).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -44,11 +43,7 @@ export function PWARegistration() {
       }
 
       if (Notification.permission === "granted") {
-        const messaging = await getMessagingClient();
-        if (!messaging) return;
-        await getToken(messaging, {
-          vapidKey
-        }).catch(() => undefined);
+        await getBrowserPushToken().catch(() => undefined);
         return;
       }
 

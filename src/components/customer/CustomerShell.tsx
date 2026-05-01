@@ -27,14 +27,20 @@ import { useAppState } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { useRealtimeMenu } from "@/lib/hooks/useRealtimeMenu";
 import { isBranchOpenAt } from "@/lib/branchHours";
-import { createOrder, subscribeOrder } from "@/lib/services/menu";
+import { getBrowserPushToken } from "@/lib/pwa/notifications";
+import {
+  createOrder,
+  fetchTrackedOrder,
+  registerOrderNotificationToken,
+} from "@/lib/services/menu";
 import { currency } from "@/lib/utils";
-import type { Branch, CartItem, Order, Product } from "@/types";
+import type { Branch, CartItem, Product, PublicTrackedOrder } from "@/types";
 
 type ModifierSelectionMap = Record<string, string[]>;
 const DEFAULT_WHATSAPP_LINK = "https://wa.me/message/JRC557CVY6LP1";
 const ACTIVE_ORDER_STORAGE_KEY = "la-barra-active-order";
 const CUSTOMER_DETAILS_STORAGE_KEY = "la-barra-customer-details";
+const TRACKING_POLL_INTERVAL_MS = 15_000;
 const orderStatusLabels = {
   new: "Pendiente de confirmación",
   preparing: "En cocina",
@@ -82,6 +88,63 @@ function getSocialHref(value?: string, platform: "whatsapp" | "instagram" = "wha
   return null;
 }
 
+function buildWhatsAppTicketHref(params: {
+  whatsapp?: string;
+  branchName?: string;
+  customerName?: string;
+  customerPhone?: string;
+  orderNote?: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    selectedModifiers: {
+      modifierName?: string;
+      optionNames?: string[];
+    }[];
+  }>;
+  subtotal: number;
+  tipAmount: number;
+  total: number;
+  orderId?: string;
+}) {
+  const baseWhatsappHref = getSocialHref(params.whatsapp, "whatsapp");
+  if (!baseWhatsappHref) return null;
+
+  const itemsLines = params.items.map((item) => {
+    const modifiersLabel = item.selectedModifiers
+      .map((modifier) =>
+        modifier.optionNames?.length
+          ? ` (${modifier.modifierName}: ${modifier.optionNames.join(", ")})`
+          : ""
+      )
+      .join("");
+
+    return `- ${item.quantity}x ${item.name}${modifiersLabel} - ${currency(item.unitPrice * item.quantity)}`;
+  });
+
+  const message = [
+    "Hola, quiero compartir mi pedido.",
+    params.branchName ? `Sucursal: ${params.branchName}` : null,
+    params.orderId ? `Pedido: #${params.orderId.slice(-6).toUpperCase()}` : null,
+    params.customerName ? `Cliente: ${params.customerName}` : null,
+    params.customerPhone ? `Telefono: ${params.customerPhone}` : null,
+    "",
+    "Detalle:",
+    ...itemsLines,
+    "",
+    `Subtotal: ${currency(params.subtotal)}`,
+    `Propina: ${currency(params.tipAmount)}`,
+    `Total: ${currency(params.total)}`,
+    params.orderNote ? "" : null,
+    params.orderNote ? `Nota: ${params.orderNote}` : null
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return `${baseWhatsappHref}${baseWhatsappHref.includes("?") ? "&" : "?"}text=${encodeURIComponent(message)}`;
+}
+
 export function CustomerShell() {
   const {
     activeBranch,
@@ -114,14 +177,25 @@ export function CustomerShell() {
   const [orderNote, setOrderNote] = useState("");
   const [submitState, setSubmitState] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [submitMessage, setSubmitMessage] = useState("");
+  const [submittedOrderWhatsappHref, setSubmittedOrderWhatsappHref] = useState<string | null>(null);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
-  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  const [activeOrderTrackingToken, setActiveOrderTrackingToken] = useState<string | null>(null);
+  const [activeOrder, setActiveOrder] = useState<PublicTrackedOrder | null>(null);
   const [lastNotifiedStatus, setLastNotifiedStatus] = useState<string | null>(null);
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [currentTimestamp, setCurrentTimestamp] = useState(() => Date.now());
   const [addNotice, setAddNotice] = useState("");
   const [showDetailsConfirm, setShowDetailsConfirm] = useState(false);
   const editorPanelRef = useRef<HTMLDivElement | null>(null);
+
+  async function linkPushTokenToOrder(orderId: string, branchId: string) {
+    const token = await getBrowserPushToken().catch(() => null);
+    if (!token) return;
+
+    await registerOrderNotificationToken(orderId, branchId, token).catch((error) => {
+      console.error("Error al registrar token de notificaciones:", error);
+    });
+  }
 
   useEffect(() => {
     const shouldLock =
@@ -149,9 +223,23 @@ export function CustomerShell() {
   }, [cart.length]);
 
   useEffect(() => {
-    const storedOrderId = window.localStorage.getItem(ACTIVE_ORDER_STORAGE_KEY);
-    if (storedOrderId) {
-      setActiveOrderId(storedOrderId);
+    const storedActiveOrder = window.localStorage.getItem(ACTIVE_ORDER_STORAGE_KEY);
+    if (storedActiveOrder) {
+      try {
+        const parsed = JSON.parse(storedActiveOrder) as {
+          id?: string;
+          trackingToken?: string;
+        };
+
+        if (parsed.id && parsed.trackingToken) {
+          setActiveOrderId(parsed.id);
+          setActiveOrderTrackingToken(parsed.trackingToken);
+        } else {
+          window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+        }
+      } catch {
+        window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+      }
     }
 
     try {
@@ -179,35 +267,65 @@ export function CustomerShell() {
   }, [activeBranch?.id]);
 
   useEffect(() => {
-    if (!activeOrderId) {
+    if (!activeOrderId || !activeOrderTrackingToken) {
       setActiveOrder(null);
       setLastNotifiedStatus(null);
       setTrackingOpen(false);
       return;
     }
 
-    return subscribeOrder(activeOrderId, (order) => {
-      setActiveOrder(order);
+    const trackedOrderId = activeOrderId;
+    const trackedOrderToken = activeOrderTrackingToken;
+    let cancelled = false;
 
-      if (order?.status === "delivered") {
-        setAddNotice("Pedido entregado");
-        setTrackingOpen(false);
-        setActiveOrder(null);
-        setLastNotifiedStatus(null);
-        window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
-        setActiveOrderId(null);
-        return;
-      }
+    async function refreshOrder() {
+      try {
+        const order = await fetchTrackedOrder(trackedOrderId, trackedOrderToken);
+        if (cancelled) return;
 
-      if (!order) {
-        window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
-        setActiveOrder(null);
-        setActiveOrderId(null);
-        setTrackingOpen(false);
-        setLastNotifiedStatus(null);
+        setActiveOrder(order);
+
+        if (order?.status === "delivered") {
+          setAddNotice("Pedido entregado");
+          setTrackingOpen(false);
+          setActiveOrder(null);
+          setLastNotifiedStatus(null);
+          window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+          setActiveOrderId(null);
+          setActiveOrderTrackingToken(null);
+          return;
+        }
+
+        if (!order) {
+          window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+          setActiveOrder(null);
+          setActiveOrderId(null);
+          setActiveOrderTrackingToken(null);
+          setTrackingOpen(false);
+          setLastNotifiedStatus(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Error al consultar seguimiento del pedido:", error);
+        }
       }
-    });
-  }, [activeOrderId]);
+    }
+
+    void refreshOrder();
+    const intervalId = window.setInterval(() => {
+      void refreshOrder();
+    }, TRACKING_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [activeOrderId, activeOrderTrackingToken]);
+
+  useEffect(() => {
+    if (!activeOrderId || !activeOrderTrackingToken || !activeBranch) return;
+    void linkPushTokenToOrder(activeOrderId, activeBranch.id);
+  }, [activeBranch, activeOrderId, activeOrderTrackingToken]);
 
   useEffect(() => {
     if (!activeOrder) return;
@@ -273,6 +391,39 @@ export function CustomerShell() {
   const whatsappHref = useMemo(
     () => getSocialHref(activeBranch?.whatsapp, "whatsapp") ?? DEFAULT_WHATSAPP_LINK,
     [activeBranch?.whatsapp]
+  );
+  const cartWhatsappTicketHref = useMemo(
+    () =>
+      buildWhatsAppTicketHref({
+        whatsapp: activeBranch?.whatsapp,
+        branchName: activeBranch?.name,
+        customerName,
+        customerPhone,
+        orderNote,
+        items: cart,
+        subtotal: cartTotal,
+        tipAmount,
+        total: orderTotal
+      }),
+    [activeBranch?.name, activeBranch?.whatsapp, cart, cartTotal, customerName, customerPhone, orderNote, orderTotal, tipAmount]
+  );
+  const activeOrderWhatsappTicketHref = useMemo(
+    () =>
+      activeOrder
+        ? buildWhatsAppTicketHref({
+            whatsapp: activeBranch?.whatsapp,
+            branchName: activeBranch?.name,
+            customerName: activeOrder.customerName,
+            customerPhone: activeOrder.customerPhone,
+            orderNote: activeOrder.orderNote,
+            items: activeOrder.items,
+            subtotal: activeOrder.subtotal ?? Math.max(activeOrder.total - (activeOrder.tipAmount ?? 0), 0),
+            tipAmount: activeOrder.tipAmount ?? 0,
+            total: activeOrder.total,
+            orderId: activeOrder.id
+          })
+        : null,
+    [activeBranch?.name, activeBranch?.whatsapp, activeOrder]
   );
   const instagramHref = useMemo(
     () => getSocialHref(activeBranch?.instagram, "instagram"),
@@ -403,6 +554,7 @@ export function CustomerShell() {
     window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
     setActiveOrder(null);
     setActiveOrderId(null);
+    setActiveOrderTrackingToken(null);
     setTrackingOpen(false);
     setLastNotifiedStatus(null);
   }
@@ -515,6 +667,18 @@ export function CustomerShell() {
       setSubmitState("sending");
       setSubmitMessage("");
 
+      const checkoutWhatsappTicketHref = buildWhatsAppTicketHref({
+        whatsapp: activeBranch.whatsapp,
+        branchName: activeBranch.name,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        orderNote: orderNote.trim(),
+        items: cart,
+        subtotal: cartTotal,
+        tipAmount,
+        total: orderTotal
+      });
+
       const order = await createOrder(
         activeBranch.id,
         cart,
@@ -528,7 +692,13 @@ export function CustomerShell() {
       setCartOpen(false);
       closeEditor();
       setActiveOrderId(order.id);
-      window.localStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, order.id);
+      setActiveOrderTrackingToken(order.trackingToken);
+      setSubmittedOrderWhatsappHref(checkoutWhatsappTicketHref);
+      window.localStorage.setItem(
+        ACTIVE_ORDER_STORAGE_KEY,
+        JSON.stringify({ id: order.id, trackingToken: order.trackingToken })
+      );
+      void linkPushTokenToOrder(order.id, activeBranch.id);
       setTrackingOpen(true);
       setSubmitState("success");
       setSubmitMessage("Tu pedido fue enviado correctamente.");
@@ -536,6 +706,7 @@ export function CustomerShell() {
       console.error("Error al enviar pedido:", error);
       setSubmitState("error");
       setSubmitMessage("No pudimos enviar tu pedido. Intenta nuevamente.");
+      setSubmittedOrderWhatsappHref(null);
       setCartOpen(true);
     }
   }
@@ -1140,15 +1311,15 @@ export function CustomerShell() {
                         <p className="text-sm font-medium text-danger">
                           Esta sucursal está cerrada. Puedes revisar el menú y tu carrito, pero no enviar pedidos por ahora.
                         </p>
-                        {whatsappHref && (
+                        {cartWhatsappTicketHref && (
                           <a
-                            href={whatsappHref}
+                            href={cartWhatsappTicketHref}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-4 py-3 text-center text-sm font-semibold text-white"
                           >
                             <MessageCircle size={16} />
-                            Mandar mensaje por WhatsApp
+                            Enviar ticket por WhatsApp
                           </a>
                         )}
                       </div>
@@ -1187,15 +1358,15 @@ export function CustomerShell() {
                   <span className="rounded-full bg-brand/10 px-3 py-2 text-sm font-semibold text-brand">
                     Pedido #{activeOrder.id.slice(-6).toUpperCase()}
                   </span>
-                  {shouldRecommendWhatsapp && whatsappHref && (
+                  {shouldRecommendWhatsapp && activeOrderWhatsappTicketHref && (
                     <a
-                      href={whatsappHref}
+                      href={activeOrderWhatsappTicketHref}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-4 py-3 text-sm font-semibold text-white"
                     >
                       <MessageCircle size={16} />
-                      Mandar mensaje al restaurante
+                      Enviar ticket al restaurante
                     </a>
                   )}
                 </div>
@@ -1421,16 +1592,30 @@ export function CustomerShell() {
                 </p>
               </div>
               <div className="mt-6 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSubmitState("idle");
-                    setSubmitMessage("");
-                  }}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white"
-                >
-                  Seguir explorando
-                </button>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  {submittedOrderWhatsappHref && (
+                    <a
+                      href={submittedOrderWhatsappHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-5 py-3 text-sm font-semibold text-white"
+                    >
+                      <MessageCircle size={16} />
+                      Enviar ticket por WhatsApp
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubmitState("idle");
+                      setSubmitMessage("");
+                      setSubmittedOrderWhatsappHref(null);
+                    }}
+                    className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white"
+                  >
+                    Seguir explorando
+                  </button>
+                </div>
               </div>
             </div>
           </div>

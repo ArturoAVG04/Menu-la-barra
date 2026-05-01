@@ -96,9 +96,13 @@ export type Order = {
   id: string;
   sucursalID: string;
   customerName: string;
+  customerPhone?: string;
   orderNote?: string;
   tableLabel?: string;
   items: CartItem[];
+  subtotal?: number;
+  tipPercent?: number;
+  tipAmount?: number;
   total: number;
   status: OrderStatus;
   itemCount?: number;
@@ -107,7 +111,26 @@ export type Order = {
   statusMessage?: string;
   updatedAt?: number;
   createdAt: number;
+  trackingToken?: string;
 };
+
+export type PublicTrackedOrder = Pick<
+  Order,
+  | "id"
+  | "items"
+  | "customerName"
+  | "customerPhone"
+  | "orderNote"
+  | "subtotal"
+  | "tipPercent"
+  | "tipAmount"
+  | "total"
+  | "status"
+  | "estimatedMinutes"
+  | "estimatedReadyAt"
+  | "statusMessage"
+  | "createdAt"
+>;
 
 export type BrandingSettings = {
   primaryRgb: string;

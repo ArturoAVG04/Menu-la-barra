@@ -10,7 +10,7 @@ Base white-label para restaurante con dos superficies:
 - Next.js + React + Tailwind CSS
 - Firebase Auth + Firestore + Cloud Messaging
 - ImgBB para hosting de imagenes
-- PWA con `manifest.json` y `public/sw.js`
+- PWA con `manifest.json` y un service worker unificado en `public/sw.js`
 
 ## Estructura
 
@@ -93,10 +93,19 @@ Archivo incluido:
 
 ## Firebase Cloud Messaging
 
-- El proyecto ya incluye `public/firebase-messaging-sw.js` para notificaciones en segundo plano.
-- Antes de usarlo, reemplaza los placeholders del archivo por tus credenciales publicas de Firebase.
+- El proyecto usa el mismo `public/sw.js` para cache offline basico y recepcion de push en segundo plano.
 - En Vercel tambien debes definir `NEXT_PUBLIC_FIREBASE_VAPID_KEY`.
+- Para envio seguro de push desde backend tambien debes definir `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL` y `FIREBASE_ADMIN_PRIVATE_KEY`.
+- Para tareas automaticas de servidor debes definir `CRON_SECRET`. Vercel lo enviara como `Authorization: Bearer <CRON_SECRET>` al cron de limpieza.
 - En iOS web push solo funciona cuando la PWA esta instalada en pantalla de inicio.
+- El cambio de estado del pedido desde admin ahora pasa por `API` protegida y dispara push real a los tokens asociados al pedido cuando la configuracion Admin SDK esta presente.
+
+## Limpieza automática de pedidos
+
+- `vercel.json` programa un cron diario hacia `/api/cron/delete-expired-orders`.
+- El cron elimina de Firestore los pedidos `delivered` y `rejected` con mas de 3 dias de antigüedad.
+- Tambien elimina los tokens FCM asociados a esos pedidos.
+- La programacion del cron en Vercel usa horario UTC.
 
 ## Firestore sugerido
 
@@ -148,3 +157,7 @@ orders/{orderId}
 - Configurar custom claims de Firebase para `role: admin`.
 - Agregar acciones de cambio de estado del pedido desde el tablero.
 - Reemplazar `public/icon.svg` por iconos finales de marca si quieres una instalacion mas pulida.
+
+## Backlog de pre-lanzamiento
+
+- Revisa [PRELAUNCH_BACKLOG.md](/home/arturo/Proyectos/Menulabarra/PRELAUNCH_BACKLOG.md:1) para el plan tecnico actualizado antes de salir a mercado.

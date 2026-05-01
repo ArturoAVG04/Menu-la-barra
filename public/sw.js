@@ -1,4 +1,4 @@
-const CACHE_NAME = "la-barra-shell-v2";
+const CACHE_NAME = "la-barra-shell-v3";
 const APP_SHELL = ["/", "/customer", "/login", "/manifest.json", "/icon.svg"];
 
 function isNavigationRequest(request) {
@@ -73,21 +73,54 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  const data = event.data?.json() ?? {
+  const fallback = {
     title: "Nuevo pedido",
-    body: "Revisa el panel de pedidos"
+    body: "Revisa el panel de pedidos",
+    url: "/admin"
   };
+
+  let data = fallback;
+
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      data = {
+        title: payload.notification?.title || payload.title || fallback.title,
+        body: payload.notification?.body || payload.body || fallback.body,
+        url: payload.data?.url || payload.url || fallback.url
+      };
+    } catch (_error) {
+      data = fallback;
+    }
+  }
 
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: "/icon.svg",
-      badge: "/icon.svg"
+      badge: "/icon.svg",
+      data: {
+        url: data.url
+      }
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(clients.openWindow("/admin"));
+  const destination = event.notification.data?.url || "/admin";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ("focus" in client) {
+          if (client.url.includes(destination)) {
+            return client.focus();
+          }
+        }
+      }
+
+      return clients.openWindow(destination);
+    })
+  );
 });

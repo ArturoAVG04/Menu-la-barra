@@ -1,5 +1,7 @@
 import type { Branch } from "@/types";
 
+export const BUSINESS_TIME_ZONE = "America/Mexico_City";
+
 export const WEEK_DAYS = [
   { id: "monday", label: "Lunes", shortLabel: "Lun." },
   { id: "tuesday", label: "Martes", shortLabel: "Mar." },
@@ -34,11 +36,34 @@ const JS_DAY_LABELS = [
   "Viernes",
   "Sábado"
 ] as const;
+const WEEK_DAY_FROM_FORMATTER = new Map(
+  JS_DAY_LABELS.map((label) => [label.toLocaleLowerCase("es-MX"), label])
+);
+const mexicoCityClockFormatter = new Intl.DateTimeFormat("es-MX", {
+  timeZone: BUSINESS_TIME_ZONE,
+  weekday: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false
+});
 
 function sortDays(days: string[]) {
   return [...days].sort(
     (left, right) => (WEEK_DAY_ORDER.get(left) ?? Number.MAX_SAFE_INTEGER) - (WEEK_DAY_ORDER.get(right) ?? Number.MAX_SAFE_INTEGER)
   );
+}
+
+function getMexicoCityTimeParts(currentDate: Date) {
+  const parts = mexicoCityClockFormatter.formatToParts(currentDate);
+  const weekdayValue = parts.find((part) => part.type === "weekday")?.value.toLocaleLowerCase("es-MX") ?? "";
+  const hourValue = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
+  const minuteValue = Number(parts.find((part) => part.type === "minute")?.value ?? "0");
+  const weekday = WEEK_DAY_FROM_FORMATTER.get(weekdayValue) ?? JS_DAY_LABELS[currentDate.getDay()];
+
+  return {
+    weekday,
+    currentMinutes: (hourValue % 24) * 60 + minuteValue
+  };
 }
 
 function parseTimeToMinutes(value: string) {
@@ -127,21 +152,31 @@ export function isBranchOpenAt(branch: Branch | null, currentDate: Date) {
   const slots = normalizeWeeklyHours(branch.weeklyHours);
   if (!slots.length) return branch.isOpen;
 
-  const todayLabel = JS_DAY_LABELS[currentDate.getDay()];
-  const currentMinutes = currentDate.getHours() * 60 + currentDate.getMinutes();
+  const { weekday: todayLabel, currentMinutes } = getMexicoCityTimeParts(currentDate);
+  const { weekday: previousDayLabel } = getMexicoCityTimeParts(
+    new Date(currentDate.getTime() - 24 * 60 * 60 * 1000)
+  );
 
   return slots.some((slot) => {
-    if (!slot.days.includes(todayLabel)) return false;
-    if (slot.allDay) return true;
-
     const openMinutes = parseTimeToMinutes(slot.open);
     const closeMinutes = parseTimeToMinutes(slot.close);
-    if (openMinutes === null || closeMinutes === null) return branch.isOpen;
+    const isOvernight = openMinutes !== null && closeMinutes !== null && closeMinutes <= openMinutes;
 
-    if (closeMinutes <= openMinutes) {
-      return currentMinutes >= openMinutes || currentMinutes < closeMinutes;
+    if (slot.days.includes(todayLabel)) {
+      if (slot.allDay) return true;
+      if (openMinutes === null || closeMinutes === null) return branch.isOpen;
+
+      if (isOvernight) {
+        return currentMinutes >= openMinutes;
+      }
+
+      return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
     }
 
-    return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+    if (!slot.days.includes(previousDayLabel) || !isOvernight || closeMinutes === null) {
+      return false;
+    }
+
+    return currentMinutes < closeMinutes;
   });
 }

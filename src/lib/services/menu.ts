@@ -10,6 +10,7 @@ import {
   setDoc,
   updateDoc
 } from "firebase/firestore";
+import type { User } from "firebase/auth";
 
 import { db } from "@/lib/firebase/config";
 import type {
@@ -20,6 +21,7 @@ import type {
   ModifierTemplate,
   Order,
   OrderStatus,
+  PublicTrackedOrder,
   Product
 } from "@/types";
 
@@ -90,6 +92,14 @@ export function subscribeOrder(orderId: string, callback: (order: Order | null) 
   });
 }
 
+function createTrackingToken() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${crypto.randomUUID()}${crypto.randomUUID().replaceAll("-", "")}`;
+  }
+
+  return `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+}
+
 function normalizeCartItems(items: CartItem[]) {
   return items.map((item) => ({
     id: item.id,
@@ -122,8 +132,9 @@ export async function createOrder(
   const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const total = subtotal + tipAmount;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const trackingToken = createTrackingToken();
 
-  return addDoc(collection(db, "orders"), {
+  const reference = await addDoc(collection(db, "orders"), {
     sucursalID: branchId,
     items: normalizeCartItems(items),
     itemCount,
@@ -137,8 +148,14 @@ export async function createOrder(
     status: "new",
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    serverCreatedAt: serverTimestamp()
+    serverCreatedAt: serverTimestamp(),
+    trackingToken
   });
+
+  return {
+    id: reference.id,
+    trackingToken
+  };
 }
 
 export async function updateOrderStatus(
@@ -161,6 +178,73 @@ export async function updateOrderStatus(
       : {}),
     ...(payload.statusMessage ? { statusMessage: payload.statusMessage } : {})
   });
+}
+
+export async function updateOrderStatusFromAdmin(
+  currentUser: User,
+  orderId: string,
+  payload: {
+    status: OrderStatus;
+    estimatedMinutes?: number;
+    estimatedReadyAt?: number;
+    statusMessage?: string;
+  }
+) {
+  const token = await currentUser.getIdToken();
+  const response = await fetch(`/api/orders/${orderId}/status`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error || "No se pudo actualizar el pedido");
+  }
+}
+
+export async function registerOrderNotificationToken(
+  orderId: string,
+  branchId: string,
+  token: string
+) {
+  const response = await fetch(`/api/orders/${orderId}/notifications`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      token,
+      branchId
+    })
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error || "No se pudo registrar el token de notificaciones");
+  }
+}
+
+export async function fetchTrackedOrder(orderId: string, trackingToken: string) {
+  const search = new URLSearchParams({ token: trackingToken });
+  const response = await fetch(`/api/orders/${orderId}/track?${search.toString()}`, {
+    method: "GET",
+    cache: "no-store"
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error || "No se pudo consultar el pedido");
+  }
+
+  return (await response.json()) as PublicTrackedOrder;
 }
 
 export async function deleteOrder(orderId: string) {
