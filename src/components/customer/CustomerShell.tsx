@@ -23,9 +23,12 @@ import {
 } from "lucide-react";
 
 import { MenuCard } from "@/components/customer/MenuCard";
+import { ProductVisual } from "@/components/customer/ProductVisual";
 import { useAppState } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { useRealtimeMenu } from "@/lib/hooks/useRealtimeMenu";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import { useScrollToTopOnChange } from "@/lib/hooks/useScrollToTopOnChange";
 import { isBranchOpenAt } from "@/lib/branchHours";
 import { getBrowserPushToken } from "@/lib/pwa/notifications";
 import {
@@ -197,23 +200,16 @@ export function CustomerShell() {
     });
   }
 
-  useEffect(() => {
-    const shouldLock =
-      cartOpen ||
+  useBodyScrollLock(
+    cartOpen ||
       branchPickerOpen ||
       trackingOpen ||
       Boolean(editingCartItemId) ||
-      Boolean(editorProductId);
-    if (shouldLock) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [branchPickerOpen, cartOpen, editingCartItemId, editorProductId, trackingOpen]);
+      Boolean(editorProductId) ||
+      submitState === "success" ||
+      showDetailsConfirm
+  );
+  useScrollToTopOnChange([activeBranch?.id]);
 
   useEffect(() => {
     if (!cart.length) {
@@ -874,7 +870,7 @@ export function CustomerShell() {
       </nav>
 
       <div className="space-y-8">
-        {categories.map((category) => {
+        {categories.map((category, categoryIndex) => {
           const sectionProducts = filteredProducts.filter(
             (product) => product.categoryId === category.id
           );
@@ -891,8 +887,13 @@ export function CustomerShell() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-4">
-                {sectionProducts.map((product) => (
-                  <MenuCard key={product.id} product={product} onSelect={openProductEditor} />
+                {sectionProducts.map((product, productIndex) => (
+                  <MenuCard
+                    key={product.id}
+                    product={product}
+                    onSelect={openProductEditor}
+                    priority={categoryIndex === 0 && productIndex < 4}
+                  />
                 ))}
               </div>
             </section>
@@ -1465,16 +1466,9 @@ export function CustomerShell() {
               </div>
 
               <div className="mt-5">
-                {editingProduct.imageUrl && (
-                  <div className="relative mb-4 h-52 overflow-hidden rounded-card bg-surface">
-                    <Image
-                      src={editingProduct.imageUrl}
-                      alt={editingProduct.name}
-                      fill
-                      className="object-cover object-center"
-                    />
-                  </div>
-                )}
+                <div className="relative mb-4 h-52 overflow-hidden rounded-card bg-surface">
+                  <ProductVisual product={editingProduct} compact />
+                </div>
                 <h3 className="text-2xl font-semibold text-text">{editingProduct.name}</h3>
                 <p className="mt-1.5 text-sm text-muted">{editingProduct.description}</p>
                 <p className="mt-3 text-sm font-semibold text-brand">

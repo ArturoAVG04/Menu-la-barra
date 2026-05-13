@@ -19,19 +19,11 @@ export function ProtectedAdmin({ children }: { children: React.ReactNode }) {
   }, [authReady, currentUser, pathname, router]);
 
   if (!authReady) {
-    return (
-      <div className="rounded-shell border border-dashed border-line bg-panel p-6 text-sm text-muted">
-        Validando sesion...
-      </div>
-    );
+    return null;
   }
 
   if (!currentUser) {
-    return (
-      <div className="rounded-shell border border-dashed border-line bg-panel p-6 text-sm text-muted">
-        Redirigiendo al acceso administrativo...
-      </div>
-    );
+    return null;
   }
 
   return <>{children}</>;

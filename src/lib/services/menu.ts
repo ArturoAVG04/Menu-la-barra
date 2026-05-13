@@ -8,7 +8,8 @@ import {
   query,
   serverTimestamp,
   setDoc,
-  updateDoc
+  updateDoc,
+  where
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
 
@@ -76,13 +77,13 @@ export function subscribeModifiers(
 }
 
 export function subscribeOrders(branchId: string, callback: (orders: Order[]) => void) {
-  const ref = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+  const ref = query(collection(db, "orders"), where("sucursalID", "==", branchId));
   return onSnapshot(ref, (snapshot) => {
-    const scoped = snapshot.docs
-      .map((item) => ({ id: item.id, ...item.data() } as Order))
-      .filter((order) => order.sucursalID === branchId);
-
-    callback(scoped);
+    callback(
+      snapshot.docs
+        .map((item) => ({ id: item.id, ...item.data() } as Order))
+        .sort((a, b) => b.createdAt - a.createdAt)
+    );
   });
 }
 

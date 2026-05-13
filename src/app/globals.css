@@ -17,15 +17,15 @@
 }
 
 [data-theme="dark"] {
-  --surface: 17 24 30;
-  --panel: 24 33 41;
-  --line: 55 68 79;
-  --text: 235 240 245;
-  --muted: 149 161 173;
-  --brand: 123 192 180;
-  --accent: 215 176 122;
-  --success: 100 212 164;
-  --danger: 240 126 114;
+  --surface: 3 3 3;
+  --panel: 13 13 13;
+  --line: 45 45 45;
+  --text: 246 246 246;
+  --muted: 166 166 166;
+  --brand: 121 196 151;
+  --accent: 226 173 92;
+  --success: 93 210 145;
+  --danger: 242 116 102;
 }
 
 * {
@@ -46,6 +46,12 @@ body {
     rgb(var(--surface));
   color: rgb(var(--text));
   font-family: var(--app-font), "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+}
+
+[data-theme="dark"] body {
+  background:
+    linear-gradient(180deg, rgb(12 12 12), rgb(0 0 0) 34%),
+    rgb(0 0 0);
 }
 
 a {

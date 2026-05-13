@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ClipboardList,
+  ChevronsLeft,
+  ChevronsRight,
   LayoutGrid,
   Menu,
   LogOut,
@@ -20,10 +22,11 @@ import { AdminProductForm } from "@/components/admin/AdminProductForm";
 import { OrderTracker } from "@/components/admin/OrderTracker";
 import { useAppState } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/ThemeProvider";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import { useScrollToTopOnChange } from "@/lib/hooks/useScrollToTopOnChange";
 import {
   deleteBranch,
   saveBranch,
-  subscribeBranches,
   subscribeOrders,
   updateOrderStatusFromAdmin
 } from "@/lib/services/menu";
@@ -87,7 +90,7 @@ const NAV_ITEMS = [
 ] as const;
 
 export function AdminShell() {
-  const { branches, currentUser, logout, setBranches } = useAppState();
+  const { branches, currentUser, logout } = useAppState();
   const { theme, toggleTheme } = useTheme();
   const [orders, setOrders] = useState<Order[]>([]);
   const [section, setSection] = useState<Section>("orders");
@@ -107,6 +110,9 @@ export function AdminShell() {
     [adminBranchId, branches]
   );
 
+  useBodyScrollLock(mobileDrawerOpen || showCreateBranch);
+  useScrollToTopOnChange([section, adminBranchId]);
+
   function notify(message: string) {
     const id = crypto.randomUUID();
     setNotices((current) => [...current, { id, message }]);
@@ -114,8 +120,6 @@ export function AdminShell() {
       setNotices((current) => current.filter((notice) => notice.id !== id));
     }, 2600);
   }
-
-  useEffect(() => subscribeBranches(setBranches), [setBranches]);
 
   useEffect(() => {
     if (!branches.length) {
@@ -311,18 +315,25 @@ export function AdminShell() {
     });
   }
 
-  function renderSidebar() {
+  function renderSidebar(forceExpanded = false) {
+    const collapsed = sidebarCollapsed && !forceExpanded;
+
     return (
-      <div className="flex h-full flex-col p-6">
-        <div className="border-b border-line pb-4">
-          <div className="flex items-center justify-between">
-            {!sidebarCollapsed && (
-              <div className="space-y-3">
+      <div
+        className={[
+          "flex h-full flex-col transition-all duration-300",
+          collapsed ? "items-center px-3 py-5" : "p-6"
+        ].join(" ")}
+      >
+        <div className={collapsed ? "w-full border-b border-line pb-4" : "border-b border-line pb-4"}>
+          <div className={collapsed ? "flex justify-center" : "flex items-center justify-between gap-3"}>
+            {!collapsed && (
+              <div className="space-y-3 text-center">
                 <div>
                   <p className="text-sm uppercase tracking-[0.25em] text-brand">La Barra</p>
                   <h1 className="mt-2 text-xl font-semibold text-text">Admin</h1>
                 </div>
-                <div className="flex items-center gap-2 self-start rounded-full bg-success/15 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-success">
+                <div className="inline-flex items-center justify-center gap-2 rounded-full bg-success/15 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-success">
                   <ShieldCheck size={16} />
                   Sesión Activa
                 </div>
@@ -331,21 +342,23 @@ export function AdminShell() {
             <button
               type="button"
               onClick={() => setSidebarCollapsed((current) => !current)}
-              className="hidden h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-text xl:inline-flex"
+              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-text transition hover:border-brand/40 hover:text-brand xl:inline-flex"
+              aria-label={collapsed ? "Expandir barra lateral" : "Ocultar barra lateral"}
+              title={collapsed ? "Expandir" : "Ocultar"}
             >
-              {sidebarCollapsed ? ">" : "<"}
+              {collapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
             </button>
           </div>
         </div>
 
         <div className="flex flex-1 flex-col overflow-y-auto py-6 scrollbar-none">
-          {!sidebarCollapsed && (
-            <div className="mb-6 space-y-2">
+          {!collapsed && (
+            <div className="mb-6 space-y-2 text-center">
               <span className="px-2 text-[10px] font-bold uppercase tracking-widest text-muted">Sucursal activa</span>
               <select
                 value={adminBranchId}
                 onChange={(event) => setAdminBranchId(event.target.value)}
-                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-sm text-text outline-none transition focus:border-brand"
+                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text outline-none transition focus:border-brand"
               >
                 <option value="">Selecciona</option>
                 {branches.map((branch) => (
@@ -358,8 +371,10 @@ export function AdminShell() {
           )}
 
           <nav className={[
-            "space-y-1 transition-all duration-300",
-            !sidebarCollapsed ? "rounded-card border border-line bg-surface/40 p-1.5 shadow-inner" : "flex flex-col items-center gap-3"
+            "transition-all duration-300",
+            !collapsed
+              ? "space-y-1 rounded-card border border-line bg-surface/40 p-1.5 text-center shadow-inner"
+              : "flex w-full flex-col items-center gap-3"
           ].join(" ")}>
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
@@ -374,33 +389,35 @@ export function AdminShell() {
                     setMobileDrawerOpen(false);
                   }}
                   className={[
-                    "inline-flex min-h-[44px] w-full items-center gap-3 rounded-card px-4 py-3 text-left text-sm font-semibold transition-all duration-200",
+                    "inline-flex min-h-[44px] w-full items-center justify-center gap-3 rounded-card px-4 py-3 text-center text-sm font-semibold transition-all duration-200",
                     active
                       ? "bg-brand text-white shadow-glow"
                       : "border border-transparent text-text hover:border-line hover:bg-surface/80",
-                    sidebarCollapsed ? "justify-center px-0 h-11 w-11" : ""
+                    collapsed ? "h-12 w-12 rounded-full px-0 py-0" : ""
                   ].join(" ")}
                   title={item.label}
                 >
                   <Icon size={18} />
-                  {!sidebarCollapsed && item.label}
+                  {!collapsed && item.label}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        <div className="mt-auto border-t border-line pt-4">
-          <div className={sidebarCollapsed ? "flex flex-col items-center gap-4" : "flex flex-col gap-3"}>
+        <div className={collapsed ? "mt-auto w-full border-t border-line pt-4" : "mt-auto border-t border-line pt-4"}>
+          <div className={collapsed ? "flex flex-col items-center gap-4" : "flex flex-col gap-3"}>
             <button
               type="button"
               onClick={() => void logout()}
               className={[
                 "inline-flex min-h-[44px] items-center justify-center rounded-full border border-line text-sm font-semibold text-text transition hover:bg-surface",
-                sidebarCollapsed ? "w-11 px-0" : "w-full px-4 py-3"
+                collapsed ? "h-12 w-12 rounded-full px-0" : "w-full px-4 py-3"
               ].join(" ")}
+              aria-label="Cerrar sesión"
+              title="Cerrar sesión"
             >
-              {sidebarCollapsed ? <LogOut size={18} /> : "Cerrar Sesión"}
+              {collapsed ? <LogOut size={18} /> : "Cerrar Sesión"}
             </button>
           </div>
         </div>
@@ -417,7 +434,7 @@ export function AdminShell() {
   }
 
   return (
-    <div className="min-h-screen bg-panel text-text">
+    <div className="min-h-screen bg-panel text-center text-text">
       {/* Notificaciones Toasts - Siempre arriba del todo en z-index */}
       <div className="pointer-events-none fixed bottom-10 left-0 right-0 z-[60] flex flex-col items-center gap-2 px-4">
         {notices.map((notice) => (
@@ -434,8 +451,8 @@ export function AdminShell() {
         {/* Sidebar Fija para Desktop */}
         <aside
           className={[
-            "hidden xl:block h-screen sticky top-0 border-r border-line bg-panel transition-all duration-300",
-            sidebarCollapsed ? "w-[88px]" : "w-[288px]"
+            "hidden h-screen sticky top-0 border-r border-line bg-panel transition-all duration-300 xl:block",
+            sidebarCollapsed ? "w-[84px]" : "w-[288px]"
           ].join(" ")}
         >
           {renderSidebar()}
@@ -443,7 +460,7 @@ export function AdminShell() {
 
         {/* Área de Contenido */}
         <div className="flex flex-1 flex-col min-w-0">
-          <header className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-panel/95 px-4 py-3 backdrop-blur md:px-6">
+          <header className="sticky top-0 z-40 flex flex-col items-center justify-center gap-3 border-b border-line bg-panel/95 px-4 py-3 text-center backdrop-blur sm:flex-row sm:justify-between md:px-6">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -457,7 +474,7 @@ export function AdminShell() {
               </h1>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={toggleTheme}
@@ -483,15 +500,15 @@ export function AdminShell() {
                 onClick={() => setMobileDrawerOpen(false)}
               />
               <div className="absolute left-0 top-0 h-full w-[280px] border-r border-line bg-panel shadow-2xl">
-                {renderSidebar()}
+                {renderSidebar(true)}
               </div>
             </div>
           )}
 
-          <main className="p-4 md:p-8 space-y-6">
+          <main className="space-y-6 p-4 text-center md:p-8">
             {section === "overview" && (
               <div className="space-y-6">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between">
                 <h2 className="text-2xl font-semibold text-text">Sucursales</h2>
                 <button
                   type="button"
@@ -510,13 +527,13 @@ export function AdminShell() {
                         key={branch.id}
                         className="rounded-card border border-line bg-surface p-3 sm:px-4 sm:py-4"
                       >
-                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="flex flex-col items-center justify-center gap-4 text-center md:flex-row md:justify-between">
                           <div>
                             <p className="font-semibold text-text">{branch.name}</p>
                             <p className="text-sm text-muted">{branch.address || "Sin dirección"}</p>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex flex-wrap items-center justify-center gap-2">
                             {branch.isPrimary && (
                               <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
                                 Principal
@@ -566,7 +583,7 @@ export function AdminShell() {
 
           {section === "business" && (
             <section className="space-y-5 rounded-shell border border-line bg-panel p-6">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-center gap-3">
                 <h2 className="text-2xl font-semibold text-text">
                   {branchEditor ? branchEditor.name : "Datos"}
                 </h2>
@@ -582,7 +599,7 @@ export function AdminShell() {
                           current ? { ...current, name: event.target.value } : current
                         )
                       }
-                      className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                    className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                       placeholder="Nombre"
                     />
                     <input
@@ -592,7 +609,7 @@ export function AdminShell() {
                           current ? { ...current, slug: event.target.value } : current
                         )
                       }
-                      className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                    className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                       placeholder="Slug"
                     />
                   </div>
@@ -605,7 +622,7 @@ export function AdminShell() {
                           current ? { ...current, address: event.target.value } : current
                         )
                       }
-                      className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                    className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                       placeholder="Dirección"
                     />
                     <input
@@ -615,7 +632,7 @@ export function AdminShell() {
                           current ? { ...current, whatsapp: event.target.value } : current
                         )
                       }
-                      className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                    className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                       placeholder="WhatsApp"
                     />
                     <input
@@ -631,7 +648,7 @@ export function AdminShell() {
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
-                    <label className="flex min-h-11 items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-sm text-text">
+                    <label className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text">
                       <input
                         type="checkbox"
                         checked={branchEditor.isOpen}
@@ -643,7 +660,7 @@ export function AdminShell() {
                       />
                       Abierta
                     </label>
-                    <label className="flex min-h-11 items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-sm text-text">
+                    <label className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text">
                       <input
                         type="checkbox"
                         checked={branchEditor.isPrimary || false}
@@ -679,7 +696,7 @@ export function AdminShell() {
                                 : current
                             )
                           }
-                          className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                      className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                         />
                       </label>
                       <label className="space-y-2 text-sm text-text">
@@ -701,7 +718,7 @@ export function AdminShell() {
                                 : current
                             )
                           }
-                          className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                          className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                         />
                       </label>
                       <label className="space-y-2 text-sm text-text">
@@ -723,7 +740,7 @@ export function AdminShell() {
                                 : current
                             )
                           }
-                          className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                          className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                         />
                       </label>
                       <label className="space-y-2 text-sm text-text">
@@ -745,7 +762,7 @@ export function AdminShell() {
                                 : current
                             )
                           }
-                          className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                          className="w-full min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                         />
                       </label>
                     </div>
@@ -765,7 +782,7 @@ export function AdminShell() {
                           key={`schedule-slot-${index}`}
                           className="space-y-4 rounded-card border border-line bg-surface p-4"
                         >
-                          <div className="flex items-center justify-between gap-3">
+                          <div className="flex flex-col items-center justify-center gap-3 text-center sm:flex-row sm:justify-between">
                             <div>
                               <p className="text-sm font-semibold text-text">Bloque {index + 1}</p>
                               <p className="text-xs text-muted">
@@ -819,7 +836,7 @@ export function AdminShell() {
                                     open: event.target.value
                                   }))
                                 }
-                                className="min-h-11 w-full rounded-card border border-line bg-panel px-4 py-3 outline-none disabled:opacity-50"
+                                className="min-h-11 w-full rounded-card border border-line bg-panel px-4 py-3 text-center outline-none disabled:opacity-50"
                               />
                             </label>
                             <label className="space-y-2 text-sm text-text">
@@ -834,7 +851,7 @@ export function AdminShell() {
                                     close: event.target.value
                                   }))
                                 }
-                                className="min-h-11 w-full rounded-card border border-line bg-panel px-4 py-3 outline-none disabled:opacity-50"
+                                className="min-h-11 w-full rounded-card border border-line bg-panel px-4 py-3 text-center outline-none disabled:opacity-50"
                               />
                             </label>
                           </div>
@@ -922,8 +939,8 @@ export function AdminShell() {
 
       {showCreateBranch && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
-          <div className="w-full max-w-xl rounded-shell border border-line bg-panel p-6 shadow-glow">
-            <div className="flex items-center justify-between gap-3">
+          <div className="w-full max-w-xl rounded-shell border border-line bg-panel p-6 text-center shadow-glow">
+            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between">
               <h2 className="text-2xl font-semibold text-text">Nueva sucursal</h2>
               <button
                 type="button"
@@ -940,7 +957,7 @@ export function AdminShell() {
                 onChange={(event) =>
                   setBranchDraft((current) => ({ ...current, name: event.target.value }))
                 }
-                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                 placeholder="Nombre"
               />
               <input
@@ -948,7 +965,7 @@ export function AdminShell() {
                 onChange={(event) =>
                   setBranchDraft((current) => ({ ...current, slug: event.target.value }))
                 }
-                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                 placeholder="Slug"
               />
               <input
@@ -956,7 +973,7 @@ export function AdminShell() {
                 onChange={(event) =>
                   setBranchDraft((current) => ({ ...current, address: event.target.value }))
                 }
-                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                 placeholder="Dirección"
               />
               <input
@@ -964,7 +981,7 @@ export function AdminShell() {
                 onChange={(event) =>
                   setBranchDraft((current) => ({ ...current, whatsapp: event.target.value }))
                 }
-                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                 placeholder="WhatsApp"
               />
               <input
@@ -972,11 +989,11 @@ export function AdminShell() {
                 onChange={(event) =>
                   setBranchDraft((current) => ({ ...current, instagram: event.target.value }))
                 }
-                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                 placeholder="Instagram"
               />
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="flex min-h-11 items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-sm text-text">
+                <label className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text">
                   <input
                     type="checkbox"
                     checked={branchDraft.isOpen}
@@ -986,7 +1003,7 @@ export function AdminShell() {
                   />
                   Abierta
                 </label>
-                <label className="flex min-h-11 items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-sm text-text">
+                <label className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text">
                   <input
                     type="checkbox"
                     checked={branchDraft.isPrimary}

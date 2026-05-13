@@ -59,8 +59,8 @@ function OrderDetail({ order, allOrders, onAccept, onReject, onReady, onDelivere
   onDelivered: (order: Order) => void;
 }) {
   return (
-    <div className="mt-3 space-y-3">
-      <div className="flex items-center justify-between gap-3 text-sm">
+    <div className="mt-3 space-y-3 text-center">
+      <div className="flex items-center justify-center gap-3 text-sm sm:justify-between">
         <span className="text-muted">
           {new Date(order.createdAt).toLocaleTimeString("es-MX", {
             hour: "2-digit",
@@ -188,9 +188,9 @@ function CompactOrder({
       <button
         type="button"
         onClick={() => setExpanded((c) => !c)}
-        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
+        className="flex w-full flex-col items-center justify-center gap-3 px-3 py-3 text-center sm:flex-row sm:justify-between"
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex min-w-0 items-center justify-center gap-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs font-bold text-brand">
             #{dayNumber}
           </span>
@@ -201,7 +201,7 @@ function CompactOrder({
             <p className="text-[10px] text-muted font-mono">{shortCode}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 items-center justify-center gap-2">
           <span className="text-xs font-semibold text-brand">{currency(order.total)}</span>
           <ChevronDown
             size={14}
@@ -259,9 +259,9 @@ function HistoryOrder({
       <button
         type="button"
         onClick={() => setExpanded((c) => !c)}
-        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
+        className="flex w-full flex-col items-center justify-center gap-3 px-3 py-3 text-center sm:flex-row sm:justify-between"
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex min-w-0 items-center justify-center gap-2.5">
           <span
             className={[
               "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
@@ -287,7 +287,7 @@ function HistoryOrder({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 flex-wrap items-center justify-center gap-2">
           <span
             className={[
               "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
@@ -359,19 +359,19 @@ export function OrderTracker({
   }, [activeOrders]);
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+    <section className="space-y-4 text-center">
+      <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.25em] text-brand">Pedidos</p>
         </div>
-        <div className="flex items-center gap-2 rounded-full bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
+        <div className="flex items-center justify-center gap-2 rounded-full bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
           <BellRing size={16} />
           {activeOrders.filter((o) => o.status === "new").length} nuevos
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         <button
           type="button"
           onClick={() => setTab("active")}
@@ -413,8 +413,8 @@ export function OrderTracker({
 
             return (
               <div key={status} className="rounded-shell border border-line bg-panel p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                <div className="mb-3 flex items-center justify-center gap-3 sm:justify-between">
+                  <div className="flex items-center justify-center gap-2">
                     <StatusIcon size={16} className="text-brand" />
                     <h3 className="text-sm font-semibold text-text">{statusLabels[status]}</h3>
                   </div>
@@ -450,8 +450,8 @@ export function OrderTracker({
 
       {tab === "history" && (
         <div className="rounded-shell border border-line bg-panel p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="mb-3 flex items-center justify-center gap-3 sm:justify-between">
+            <div className="flex items-center justify-center gap-2">
               <Archive size={16} className="text-muted" />
               <h3 className="text-sm font-semibold text-text">Últimos 3 días</h3>
             </div>

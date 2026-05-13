@@ -19,6 +19,7 @@ import {
 import { MenuCard } from "@/components/customer/MenuCard";
 import { useAppState } from "@/components/providers/AppProviders";
 import { useRealtimeMenu } from "@/lib/hooks/useRealtimeMenu";
+import { useScrollToTopOnChange } from "@/lib/hooks/useScrollToTopOnChange";
 import {
   saveBranding,
   saveBranch,
@@ -109,6 +110,15 @@ export function AdminProductForm({
   const [showProductForm, setShowProductForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showModifierForm, setShowModifierForm] = useState(false);
+
+  useScrollToTopOnChange([
+    section,
+    menuTab,
+    showProductForm,
+    showCategoryForm,
+    showModifierForm,
+    expandedProductId
+  ]);
 
   useEffect(() => {
     setProduct({
@@ -490,9 +500,9 @@ export function AdminProductForm({
 
   if (section === "themes") {
     return (
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="grid gap-6 text-center xl:grid-cols-[0.95fr_1.05fr]">
         <section className="space-y-5 rounded-shell border border-line bg-panel p-6">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
             <div className="rounded-full bg-brand/10 p-3 text-brand">
               <Palette size={18} />
             </div>
@@ -502,7 +512,7 @@ export function AdminProductForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <span className="text-sm font-medium text-text">Color principal</span>
-            <div className="flex items-center gap-3 rounded-card border border-line bg-surface p-2">
+            <div className="flex items-center justify-center gap-3 rounded-card border border-line bg-surface p-2">
               <input
                 type="color"
                 value={rgbToHex(branding.primaryRgb || "55 101 94")}
@@ -514,7 +524,7 @@ export function AdminProductForm({
           </div>
           <div className="space-y-2">
             <span className="text-sm font-medium text-text">Color de acento</span>
-            <div className="flex items-center gap-3 rounded-card border border-line bg-surface p-2">
+            <div className="flex items-center justify-center gap-3 rounded-card border border-line bg-surface p-2">
               <input
                 type="color"
                 value={rgbToHex(branding.accentRgb || "180 140 92")}
@@ -532,7 +542,7 @@ export function AdminProductForm({
             <select
               value={branding.shape}
               onChange={(event) => setBranding({ ...branding, shape: event.target.value as any })}
-              className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+              className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
             >
               <option value="rounded">Suave (Redondeado)</option>
               <option value="square">Clásico (Recto)</option>
@@ -542,12 +552,12 @@ export function AdminProductForm({
 
           <label className="block space-y-2 text-sm text-text">
             <span>Tipografía</span>
-            <div className="flex items-center gap-2 min-h-11 w-full rounded-card border border-line bg-surface px-4">
+            <div className="flex items-center justify-center gap-2 min-h-11 w-full rounded-card border border-line bg-surface px-4">
               <Type size={16} className="text-muted" />
               <select
                 value={branding.fontFamily || "sans"}
                 onChange={(e) => setBranding({ ...branding, fontFamily: e.target.value })}
-                className="flex-1 bg-transparent outline-none"
+                className="flex-1 bg-transparent text-center outline-none"
               >
                 <option value="sans">Moderna (Sans-serif)</option>
                 <option value="serif">Elegante (Serif)</option>
@@ -560,7 +570,7 @@ export function AdminProductForm({
             type="button"
             onClick={() => void handleSaveBranding()}
             disabled={isSavingBranding}
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
+          className="inline-flex min-h-11 items-center justify-center self-center rounded-full bg-brand px-5 py-3 text-center text-sm font-semibold text-white disabled:bg-line disabled:text-muted"
           >
             {isSavingBranding ? "Guardando..." : "Guardar cambios"}
           </button>
@@ -580,7 +590,7 @@ export function AdminProductForm({
           />
         </label>
 
-          <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-card border border-dashed border-line bg-surface px-4 py-4 text-sm text-text">
+          <label className="flex min-h-11 cursor-pointer items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface px-4 py-4 text-center text-sm text-text">
             <ImagePlus size={18} className="text-brand" />
             <span>{isUploadingCover ? "Subiendo..." : "Portada sucursal"}</span>
             <input
@@ -591,7 +601,7 @@ export function AdminProductForm({
             />
           </label>
 
-          <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-card border border-dashed border-line bg-surface px-4 py-4 text-sm text-text">
+          <label className="flex min-h-11 cursor-pointer items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface px-4 py-4 text-center text-sm text-text">
             <ImagePlus size={18} className="text-brand" />
             <span>{isUploadingMenuCover ? "Subiendo..." : "Portada menú"}</span>
             <input
@@ -630,8 +640,8 @@ export function AdminProductForm({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-6 text-center">
+      <div className="flex flex-wrap justify-center gap-2">
         {[
           { id: "products", label: "PRODUCTOS" },
           { id: "categories", label: "CATEGORÍAS" },
@@ -658,7 +668,7 @@ export function AdminProductForm({
 
       {menuTab === "products" && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between">
             <h2 className="text-2xl font-semibold text-text">
               {showProductForm ? (expandedProductId ? "Editar producto" : "Nuevo producto") : "Productos"}
             </h2>
@@ -682,13 +692,13 @@ export function AdminProductForm({
           {showProductForm ? (
             <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
               <section className="space-y-5 rounded-shell border border-line bg-panel p-6">
-                <form onSubmit={handleSaveProduct} className="grid gap-4 lg:grid-cols-2">
+                <form onSubmit={handleSaveProduct} className="grid gap-4 text-center lg:grid-cols-2">
                   <label className="space-y-2 text-sm text-text">
                     <span>Nombre</span>
                     <input
                       value={product.name}
                       onChange={(event) => setProduct((current) => ({ ...current, name: event.target.value }))}
-                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                     />
                   </label>
 
@@ -699,7 +709,7 @@ export function AdminProductForm({
                       onChange={(event) =>
                         setProduct((current) => ({ ...current, categoryId: event.target.value }))
                       }
-                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                     >
                       <option value="">Selecciona</option>
                       {categories.map((category) => (
@@ -723,7 +733,7 @@ export function AdminProductForm({
                           sortOrder: Number(event.target.value) || 0
                         }))
                       }
-                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                       placeholder="1"
                     />
                   </label>
@@ -738,7 +748,7 @@ export function AdminProductForm({
                       onChange={(event) =>
                         setProduct((current) => ({ ...current, price: Number(event.target.value) }))
                       }
-                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                     />
                   </label>
 
@@ -760,7 +770,7 @@ export function AdminProductForm({
                             discountPercent: Number(event.target.value)
                           }))
                         }
-                        className="min-h-11 w-full rounded-card border border-line bg-surface px-10 py-3 outline-none"
+                        className="min-h-11 w-full rounded-card border border-line bg-surface px-10 py-3 text-center outline-none"
                       />
                     </div>
                   </label>
@@ -772,7 +782,7 @@ export function AdminProductForm({
                       onChange={(event) =>
                         setProduct((current) => ({ ...current, description: event.target.value }))
                       }
-                      className="min-h-28 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                      className="min-h-28 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                     />
                   </label>
 
@@ -784,7 +794,7 @@ export function AdminProductForm({
                         return (
                           <label
                             key={item.id}
-                            className="flex min-h-11 items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-sm text-text"
+                            className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text"
                           >
                             <input
                               type="checkbox"
@@ -806,7 +816,7 @@ export function AdminProductForm({
                   </div>
 
                   <div className="space-y-2 text-sm text-text lg:col-span-2">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between">
                       <span>Personalizaciones</span>
                       <button
                         type="button"
@@ -825,7 +835,7 @@ export function AdminProductForm({
                           return (
                             <label
                               key={modifier.id}
-                              className="flex min-h-11 items-start gap-3 rounded-card border border-line bg-surface px-4 py-3 text-sm text-text"
+                              className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text"
                             >
                               <input
                                 type="checkbox"
@@ -876,7 +886,7 @@ export function AdminProductForm({
                   </label>
 
                   {product.imageUrl && (
-                    <div className="lg:col-span-2 flex items-center gap-4 rounded-card border border-line bg-surface p-2">
+                    <div className="lg:col-span-2 flex flex-col items-center justify-center gap-4 rounded-card border border-line bg-surface p-2 text-center sm:flex-row">
                       <img src={product.imageUrl} alt="Preview" className="h-16 w-16 rounded-lg object-cover" />
                       <span className="text-xs text-muted truncate flex-1">
                         {product.imageUrl}
@@ -884,7 +894,7 @@ export function AdminProductForm({
                     </div>
                   )}
 
-                  <label className="flex min-h-11 items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-sm text-text lg:col-span-2">
+                  <label className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text lg:col-span-2">
                     <input
                       type="checkbox"
                       checked={product.available}
@@ -895,8 +905,8 @@ export function AdminProductForm({
                     Disponible
                   </label>
 
-                  <div className="lg:col-span-2 flex flex-col gap-4 rounded-card border border-line bg-surface p-4 md:flex-row md:items-center md:justify-between">
-                    <div className="flex flex-wrap items-center gap-4">
+                  <div className="lg:col-span-2 flex flex-col items-center justify-center gap-4 rounded-card border border-line bg-surface p-4 md:flex-row md:justify-between">
+                    <div className="flex flex-wrap items-center justify-center gap-4">
                       <p className="inline-flex items-center gap-2 font-semibold text-text">
                         <Tag size={16} />
                         {product.discountPercent
@@ -943,7 +953,7 @@ export function AdminProductForm({
 
                     return (
                       <div key={category.id} className="rounded-card border border-line bg-surface p-4">
-                        <div className="mb-4 flex items-center justify-between gap-3">
+                        <div className="mb-4 flex flex-col items-center justify-center gap-3 text-center sm:flex-row sm:justify-between">
                           <div>
                             <p className="font-semibold text-text">{category.name}</p>
                             <p className="text-sm text-muted">Ordena cómo aparecerán en el menú</p>
@@ -957,15 +967,15 @@ export function AdminProductForm({
                           {categoryProducts.map((item, index) => (
                             <div
                               key={item.id}
-                              className="flex flex-col gap-3 rounded-card border border-line bg-panel px-4 py-4 md:flex-row md:items-center md:justify-between"
+                              className="flex flex-col items-center justify-center gap-3 rounded-card border border-line bg-panel px-4 py-4 text-center md:flex-row md:justify-between"
                             >
                               <button
                                 type="button"
                                 onClick={() => loadProductIntoEditor(item)}
-                                className="flex min-w-0 flex-1 items-start text-left"
+                                className="flex min-w-0 flex-1 items-center justify-center text-center"
                               >
                                 <div className="min-w-0">
-                                  <div className="flex flex-wrap items-center gap-2">
+                                  <div className="flex flex-wrap items-center justify-center gap-2">
                                     <p className="font-semibold text-text">{item.name}</p>
                                     <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">
                                       #{item.sortOrder || index + 1}
@@ -977,7 +987,7 @@ export function AdminProductForm({
                                 </div>
                               </button>
 
-                              <div className="flex items-center justify-between gap-3 md:justify-end">
+                              <div className="flex flex-wrap items-center justify-center gap-3">
                                 <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
                                   {currency(item.salePrice || item.price)}
                                 </span>
@@ -1029,7 +1039,7 @@ export function AdminProductForm({
 
       {menuTab === "categories" && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between">
             <h2 className="text-2xl font-semibold text-text">Categorías</h2>
             <button
               type="button"
@@ -1049,7 +1059,7 @@ export function AdminProductForm({
           </div>
 
           {showCategoryForm ? (
-            <section className="max-w-xl space-y-4 rounded-shell border border-line bg-panel p-6">
+            <section className="mx-auto max-w-xl space-y-4 rounded-shell border border-line bg-panel p-6 text-center">
               <h2 className="text-xl font-semibold text-text">
                 {editingCategoryId ? "Editar categoría" : "Nueva categoría"}
               </h2>
@@ -1057,10 +1067,10 @@ export function AdminProductForm({
                 <input
                   value={categoryName}
                   onChange={(event) => setCategoryName(event.target.value)}
-                  className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none focus:border-brand"
+                  className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none focus:border-brand"
                   placeholder="Nombre"
                 />
-                <div className="flex gap-2">
+                <div className="flex justify-center gap-2">
                   <button
                     type="submit"
                     disabled={!categoryName.trim() || isSavingCategory}
@@ -1077,14 +1087,14 @@ export function AdminProductForm({
                 {categories.length ? (
                   categories.map((category, index) => (
                     <div key={category.id} className="group rounded-card border border-line bg-surface px-4 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
+                      <div className="flex flex-col items-center justify-center gap-3 text-center sm:flex-row sm:justify-between">
+                        <div className="flex flex-wrap items-center justify-center gap-3">
                           <p className="font-semibold text-text">{category.name}</p>
                           <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">
                             {products.filter((p) => p.categoryId === category.id).length} ítems
                           </span>
                         </div>
-                        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 transition group-hover:opacity-100">
+                        <div className="flex items-center justify-center gap-1 opacity-100 transition group-hover:opacity-100 sm:opacity-0">
                           <button
                             type="button"
                             onClick={() => void moveCategory(category.id, "up")}
@@ -1138,7 +1148,7 @@ export function AdminProductForm({
 
       {menuTab === "modifiers" && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between">
             <h2 className="text-2xl font-semibold text-text">Personalizaciones</h2>
             <button
               type="button"
@@ -1161,7 +1171,7 @@ export function AdminProductForm({
           </div>
 
           {showModifierForm ? (
-            <section className="max-w-2xl space-y-4 rounded-shell border border-line bg-panel p-6">
+            <section className="mx-auto max-w-2xl space-y-4 rounded-shell border border-line bg-panel p-6 text-center">
               <h2 className="text-xl font-semibold text-text">
                 {modifierDraft.id ? "Editar personalización" : "Nueva personalización"}
               </h2>
@@ -1171,7 +1181,7 @@ export function AdminProductForm({
                   onChange={(event) =>
                     setModifierDraft((current) => ({ ...current, name: event.target.value }))
                   }
-                  className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                  className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                   placeholder="Nombre"
                 />
 
@@ -1188,7 +1198,7 @@ export function AdminProductForm({
                         sortOrder: Number(event.target.value) || 0
                       }))
                     }
-                    className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                    className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                     placeholder="Ej: 1"
                   />
                 </label>
@@ -1202,13 +1212,13 @@ export function AdminProductForm({
                         type: event.target.value as ModifierTemplate["type"]
                       }))
                     }
-                    className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                    className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                   >
                     <option value="multiple">Múltiple</option>
                     <option value="single">Única</option>
                   </select>
 
-                  <label className="flex min-h-11 items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-sm text-text">
+                  <label className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text">
                     <input
                       type="checkbox"
                       checked={modifierDraft.required}
@@ -1236,7 +1246,7 @@ export function AdminProductForm({
                             )
                           }))
                         }
-                        className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                        className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                         placeholder="Opción"
                       />
                       <input
@@ -1254,7 +1264,7 @@ export function AdminProductForm({
                             )
                           }))
                         }
-                        className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 outline-none"
+                        className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
                         placeholder="Precio"
                       />
                     </div>
@@ -1297,7 +1307,7 @@ export function AdminProductForm({
                     .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
                     .map((modifier, index, array) => (
                     <div key={modifier.id} className="group relative rounded-card border border-line bg-surface p-4 transition hover:border-brand/40">
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col items-center justify-center gap-3 text-center sm:flex-row sm:justify-between">
                         <div>
                           <p className="font-semibold text-text">{modifier.name} <span className="text-[10px] text-brand ml-1">#{(modifier as any).sortOrder || index + 1}</span></p>
                           <p className="text-[10px] text-muted uppercase tracking-wider">{modifier.type === 'single' ? 'Única' : 'Múltiple'}</p>
@@ -1340,8 +1350,8 @@ export function AdminProductForm({
                       </div>
                       <div className="mt-3 space-y-2">
                         {modifier.options.map((option) => (
-                          <div key={option.id} className="flex items-center justify-between gap-3 text-sm text-muted">
-                            <span className="inline-flex items-center gap-2">
+                          <div key={option.id} className="flex flex-col items-center justify-center gap-2 text-center text-sm text-muted sm:flex-row sm:justify-between sm:gap-3">
+                            <span className="inline-flex items-center justify-center gap-2">
                               <Check size={14} />
                               {option.name}
                             </span>

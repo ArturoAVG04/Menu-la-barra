@@ -5,14 +5,19 @@ import { useEffect } from "react";
 import { APP_SERVICE_WORKER_URL, getBrowserPushToken } from "@/lib/pwa/notifications";
 import { getFirebaseVapidKey } from "@/lib/firebase/config";
 
+function isLocalDev() {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
+  );
+}
+
 export function PWARegistration() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    const isLocalhost =
-      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-
-    if (process.env.NODE_ENV !== "production" || isLocalhost) {
+    if (isLocalDev()) {
       navigator.serviceWorker.getRegistrations().then((registrations) => {
         registrations.forEach((registration) => {
           void registration.unregister();
@@ -35,6 +40,8 @@ export function PWARegistration() {
 
   useEffect(() => {
     async function requestNotifications() {
+      if (isLocalDev()) return;
+
       const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
       const vapidKey = getFirebaseVapidKey();
 

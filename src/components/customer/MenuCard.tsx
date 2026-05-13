@@ -1,16 +1,16 @@
 "use client";
 
-import Image from "next/image";
-
+import { ProductVisual } from "@/components/customer/ProductVisual";
 import { currency } from "@/lib/utils";
 import type { Product } from "@/types";
 
 type MenuCardProps = {
   product: Product;
   onSelect: (product: Product) => void;
+  priority?: boolean;
 };
 
-export function MenuCard({ product, onSelect }: MenuCardProps) {
+export function MenuCard({ product, onSelect, priority = false }: MenuCardProps) {
   return (
     <button
       type="button"
@@ -19,12 +19,7 @@ export function MenuCard({ product, onSelect }: MenuCardProps) {
       className="group flex h-full w-full flex-col overflow-hidden rounded-card border border-line bg-panel text-left shadow-glow transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-75"
     >
       <div className="relative h-44 shrink-0 overflow-hidden bg-surface">
-        <Image
-          src={product.imageUrl || "https://i.ibb.co/6w0pJ6L/placeholder-food.png"}
-          alt={product.name}
-          fill
-          className="object-cover object-center transition duration-500 group-hover:scale-105"
-        />
+        <ProductVisual product={product} priority={priority} />
         {!product.available && (
           <div className="absolute inset-0 grid place-items-center bg-surface/85 text-sm font-semibold text-danger">
             Temporalmente no disponible

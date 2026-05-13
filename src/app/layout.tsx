@@ -9,7 +9,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "La Barra",
   description: "Descubre todos los productos que la barra tiene para ti",
-  manifest: "/manifest.json",
+  manifest: "/manifest-customer.json",
   icons: {
     icon: "/icon.svg",
     apple: "/icon.svg"

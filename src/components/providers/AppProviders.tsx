@@ -38,8 +38,21 @@ const defaultBranding: BrandingSettings = {
 };
 
 const ACTIVE_BRANCH_STORAGE_KEY = "la-barra-branch";
+const BRANCHES_STORAGE_KEY = "la-barra-branches";
 const CART_BRANCH_STORAGE_KEY = "la-barra-cart-branch";
 const cartStorageKey = (branchId: string) => `la-barra-cart:${branchId}`;
+const brandingStorageKey = (branchId: string) => `la-barra-branding:${branchId}`;
+
+function readStoredJson<T>(key: string, fallback: T) {
+  if (typeof window === "undefined") return fallback;
+
+  try {
+    const stored = window.localStorage.getItem(key);
+    return stored ? (JSON.parse(stored) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function readStoredCart(branchId: string) {
   try {
@@ -53,36 +66,57 @@ function readStoredCart(branchId: string) {
 const AppStateContext = createContext<AppStateValue | null>(null);
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [activeBranch, setActiveBranch] = useState<Branch | null>(null);
-  const [branding, setBranding] = useState<BrandingSettings>(defaultBranding);
+  const initialActiveBranch = readStoredJson<Branch | null>(ACTIVE_BRANCH_STORAGE_KEY, null);
+  const [branches, setBranches] = useState<Branch[]>(() =>
+    readStoredJson<Branch[]>(BRANCHES_STORAGE_KEY, [])
+  );
+  const [activeBranch, setActiveBranch] = useState<Branch | null>(initialActiveBranch);
+  const [branding, setBranding] = useState<BrandingSettings>(() =>
+    initialActiveBranch
+      ? {
+          ...defaultBranding,
+          ...readStoredJson<Partial<BrandingSettings>>(brandingStorageKey(initialActiveBranch.id), {})
+        }
+      : defaultBranding
+  );
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [cartBranchId, setCartBranchId] = useState<string | null>(null);
+  const [cartBranchId, setCartBranchId] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : window.localStorage.getItem(CART_BRANCH_STORAGE_KEY)
+  );
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>("guest");
   const [authReady, setAuthReady] = useState(false);
   const [cartLoaded, setCartLoaded] = useState(false);
 
   useEffect(() => {
-    const storedBranch = window.localStorage.getItem(ACTIVE_BRANCH_STORAGE_KEY);
-    if (storedBranch) {
-      setActiveBranch(JSON.parse(storedBranch) as Branch);
-    }
-
-    const storedCartBranchId = window.localStorage.getItem(CART_BRANCH_STORAGE_KEY);
-    if (storedCartBranchId) {
-      setCartBranchId(storedCartBranchId);
+    if (activeBranch) {
+      setCart(readStoredCart(activeBranch.id));
+      setCartBranchId(activeBranch.id);
+      setCartLoaded(true);
     }
   }, []);
 
-  useEffect(() => subscribeBranches(setBranches), []);
+  useEffect(
+    () =>
+      subscribeBranches((nextBranches) => {
+        setBranches(nextBranches);
+        window.localStorage.setItem(BRANCHES_STORAGE_KEY, JSON.stringify(nextBranches));
+      }),
+    []
+  );
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      setAuthReady(true);
+
+      if (!user) {
+        setRole("guest");
+        return;
+      }
+
       const token = user ? await user.getIdTokenResult() : null;
       setRole(token?.claims.role === "admin" ? "admin" : "guest");
-      setAuthReady(true);
     });
 
     return unsubscribe;
@@ -105,8 +139,15 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    setBranding({
+      ...defaultBranding,
+      ...readStoredJson<Partial<BrandingSettings>>(brandingStorageKey(activeBranch.id), {})
+    });
+
     return subscribeBranding(activeBranch.id, (settings) => {
-      setBranding(settings ? { ...defaultBranding, ...settings } : defaultBranding);
+      const nextBranding = settings ? { ...defaultBranding, ...settings } : defaultBranding;
+      setBranding(nextBranding);
+      window.localStorage.setItem(brandingStorageKey(activeBranch.id), JSON.stringify(nextBranding));
     });
   }, [activeBranch?.id]);
 
