@@ -750,7 +750,7 @@ export function CustomerShell() {
   }
 
   return (
-    <div className="space-y-6 pb-40 md:pb-32">
+    <div className="space-y-5 pb-40 md:pb-32">
       {addNotice && (
         <div className="pointer-events-none fixed left-1/2 top-4 z-[80] -translate-x-1/2 px-4">
           <div className="min-w-[240px] rounded-full border border-success/30 bg-panel px-6 py-3 text-center text-sm font-semibold text-success shadow-glow">
@@ -759,24 +759,24 @@ export function CustomerShell() {
         </div>
       )}
 
-      <header className="overflow-hidden rounded-shell border border-line bg-panel">
+      <header className="overflow-hidden rounded-shell border border-line bg-panel shadow-sm">
         <div
           className="relative p-5 md:p-6"
           style={{
             backgroundImage: activeBranch.menuCoverImageUrl
               ? `linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.45)), url(${activeBranch.menuCoverImageUrl})`
-              : "linear-gradient(135deg, rgb(var(--brand) / 0.88), rgb(var(--accent) / 0.72))",
+              : "linear-gradient(135deg, rgb(var(--brand) / 0.94), rgb(37 48 47 / 0.92))",
             backgroundSize: "cover",
             backgroundPosition: "center center"
           }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-brand/10 via-transparent to-accent/15" />
-          <div className="relative space-y-6">
+          <div className="absolute inset-0 bg-black/10" />
+          <div className="relative space-y-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
                   {branding.logoUrl ? (
-                    <div className="relative h-14 w-14 overflow-hidden rounded-full border border-white/20 bg-white/90 p-2 shadow-glow">
+                    <div className="relative h-14 w-14 overflow-hidden rounded-card border border-white/20 bg-white/90 p-2 shadow-sm">
                       <Image
                         src={branding.logoUrl}
                         alt="Logo"
@@ -785,13 +785,13 @@ export function CustomerShell() {
                       />
                     </div>
                   ) : (
-                    <div className="grid h-14 w-14 place-items-center rounded-full bg-white/15 text-white backdrop-blur">
+                    <div className="grid h-14 w-14 place-items-center rounded-card bg-white/15 text-white backdrop-blur">
                       <Store size={20} />
                     </div>
                   )}
 
                   <div>
-                    <h1 className="mt-2 text-3xl font-semibold text-white md:text-4xl">
+                    <h1 className="mt-1 text-2xl font-semibold text-white md:text-3xl">
                       {activeBranch.name}
                     </h1>
                     {activeBranch.address && (
@@ -825,7 +825,7 @@ export function CustomerShell() {
                 <button
                   type="button"
                   onClick={() => setBranchPickerOpen(true)}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white backdrop-blur"
+                  className="inline-flex min-h-11 items-center justify-center rounded-card border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white backdrop-blur"
                 >
                   Cambiar sucursal
                 </button>
@@ -840,7 +840,7 @@ export function CustomerShell() {
               </div>
             </div>
 
-            <div className="rounded-full border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
+            <div className="rounded-card border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
               <div className="flex items-center gap-3">
                 <Search size={18} className="text-white/70" />
                 <input
@@ -855,21 +855,21 @@ export function CustomerShell() {
         </div>
       </header>
 
-      <nav className="scrollbar-subtle flex gap-2 overflow-x-auto whitespace-nowrap pb-2 lg:gap-3">
+      <nav className="scrollbar-subtle sticky top-2 z-30 -mx-3 flex gap-2 overflow-x-auto whitespace-nowrap border-y border-line bg-surface/95 px-3 py-2 backdrop-blur sm:-mx-4 sm:px-4 md:-mx-6 md:px-6 lg:gap-3">
         {categories
           .filter((category) => products.some((p) => p.categoryId === category.id))
           .map((category) => (
           <a
             key={category.id}
             href={`#category-${category.id}`}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-line bg-panel px-4 py-3 text-center text-sm font-semibold text-text transition hover:border-brand/40 hover:bg-brand/5"
+            className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-card border border-line bg-panel px-4 py-2.5 text-center text-sm font-semibold text-text transition hover:border-brand/40 hover:bg-brand/5"
           >
             {category.name}
           </a>
         ))}
       </nav>
 
-      <div className="space-y-8">
+      <div className="space-y-9">
         {categories.map((category, categoryIndex) => {
           const sectionProducts = filteredProducts.filter(
             (product) => product.categoryId === category.id
@@ -880,13 +880,13 @@ export function CustomerShell() {
           return (
             <section key={category.id} id={`category-${category.id}`} className="space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-2xl font-semibold text-text">{category.name}</h2>
-                <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
+                <h2 className="text-xl font-semibold text-text md:text-2xl">{category.name}</h2>
+                <span className="rounded-card bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
                   {sectionProducts.length} opciones
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {sectionProducts.map((product, productIndex) => (
                   <MenuCard
                     key={product.id}
@@ -962,7 +962,7 @@ export function CustomerShell() {
           <button
             type="button"
             onClick={() => setTrackingOpen(true)}
-            className="flex w-full items-center justify-between rounded-full border border-line bg-panel px-4 py-3 text-left shadow-glow md:ml-auto md:max-w-md"
+            className="flex w-full items-center justify-between rounded-shell border border-line bg-panel px-4 py-3 text-left shadow-glow md:ml-auto md:max-w-md"
           >
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-brand/10 p-3 text-brand">
@@ -981,7 +981,7 @@ export function CustomerShell() {
           <button
             type="button"
             onClick={() => setCartOpen(true)}
-            className="flex w-full items-center justify-between rounded-full border border-line bg-panel px-4 py-3 text-left shadow-glow md:ml-auto md:max-w-md"
+            className="flex w-full items-center justify-between rounded-shell border border-line bg-panel px-4 py-3 text-left shadow-glow md:ml-auto md:max-w-md"
           >
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-brand/10 p-3 text-brand">

@@ -25,7 +25,7 @@ const config: Config = {
         card: "var(--radius-card)"
       },
       boxShadow: {
-        glow: "0 18px 40px rgba(0, 0, 0, 0.18)"
+        glow: "0 12px 30px rgba(0, 0, 0, 0.12)"
       },
       backgroundImage: {
         noise:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ClipboardList,
   ChevronsLeft,
@@ -103,6 +103,7 @@ export function AdminShell() {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [showCreateBranch, setShowCreateBranch] = useState(false);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const updatingOrderIdsRef = useRef(new Set<string>());
   const [currentTimestamp, setCurrentTimestamp] = useState(() => Date.now());
 
   const selectedBranch = useMemo(
@@ -218,50 +219,93 @@ export function AdminShell() {
     notify("Sucursal eliminada");
   }
 
+  async function runOrderAction(order: Order, action: () => Promise<void>, successMessage: string) {
+    if (updatingOrderIdsRef.current.has(order.id)) return;
+
+    updatingOrderIdsRef.current.add(order.id);
+    try {
+      await action();
+      notify(successMessage);
+    } catch (error) {
+      console.error("Error al actualizar pedido:", error);
+      notify(error instanceof Error ? error.message : "No se pudo actualizar el pedido");
+    } finally {
+      updatingOrderIdsRef.current.delete(order.id);
+    }
+  }
+
   async function handleAcceptOrder(order: Order) {
-    if (!selectedBranch || !currentUser) return;
+    if (!selectedBranch || !currentUser) {
+      notify("Selecciona una sucursal e inicia sesión de nuevo.");
+      return;
+    }
 
     const estimatedMinutes = getEstimatedMinutes(selectedBranch, order);
-    await updateOrderStatusFromAdmin(currentUser, order.id, {
-      status: "preparing",
-      estimatedMinutes,
-      estimatedReadyAt: Date.now() + estimatedMinutes * 60_000,
-      statusMessage:
-        "Tu pedido fue aceptado. Te recomendamos mandar mensaje al restaurante por cualquier detalle o para recibir actualizaciones."
-    });
-    notify("Pedido aceptado");
+    await runOrderAction(
+      order,
+      () =>
+        updateOrderStatusFromAdmin(currentUser, order.id, {
+          status: "preparing",
+          estimatedMinutes,
+          estimatedReadyAt: Date.now() + estimatedMinutes * 60_000,
+          statusMessage:
+            "Tu pedido fue aceptado. Te recomendamos mandar mensaje al restaurante por cualquier detalle o para recibir actualizaciones."
+        }),
+      "Pedido aceptado"
+    );
   }
 
   async function handleRejectOrder(order: Order) {
-    if (!currentUser) return;
+    if (!currentUser) {
+      notify("Inicia sesión de nuevo para actualizar pedidos.");
+      return;
+    }
 
-    await updateOrderStatusFromAdmin(currentUser, order.id, {
-      status: "rejected",
-      statusMessage:
-        "Tu pedido fue rechazado. Te recomendamos mandar mensaje al restaurante para revisar cualquier detalle."
-    });
-    notify("Pedido rechazado");
+    await runOrderAction(
+      order,
+      () =>
+        updateOrderStatusFromAdmin(currentUser, order.id, {
+          status: "rejected",
+          statusMessage:
+            "Tu pedido fue rechazado. Te recomendamos mandar mensaje al restaurante para revisar cualquier detalle."
+        }),
+      "Pedido rechazado"
+    );
   }
 
   async function handleReadyOrder(order: Order) {
-    if (!currentUser) return;
+    if (!currentUser) {
+      notify("Inicia sesión de nuevo para actualizar pedidos.");
+      return;
+    }
 
-    await updateOrderStatusFromAdmin(currentUser, order.id, {
-      status: "ready",
-      statusMessage:
-        "Tu pedido está listo. Te recomendamos mandar mensaje al restaurante para coordinar cualquier detalle."
-    });
-    notify("Pedido listo");
+    await runOrderAction(
+      order,
+      () =>
+        updateOrderStatusFromAdmin(currentUser, order.id, {
+          status: "ready",
+          statusMessage:
+            "Tu pedido está listo. Te recomendamos mandar mensaje al restaurante para coordinar cualquier detalle."
+        }),
+      "Pedido listo"
+    );
   }
 
   async function handleDeliveredOrder(order: Order) {
-    if (!currentUser) return;
+    if (!currentUser) {
+      notify("Inicia sesión de nuevo para actualizar pedidos.");
+      return;
+    }
 
-    await updateOrderStatusFromAdmin(currentUser, order.id, {
-      status: "delivered",
-      statusMessage: "Pedido entregado"
-    });
-    notify("Pedido entregado");
+    await runOrderAction(
+      order,
+      () =>
+        updateOrderStatusFromAdmin(currentUser, order.id, {
+          status: "delivered",
+          statusMessage: "Pedido entregado"
+        }),
+      "Pedido entregado"
+    );
   }
 
   function updateScheduleSlot(

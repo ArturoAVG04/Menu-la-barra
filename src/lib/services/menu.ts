@@ -191,7 +191,7 @@ export async function updateOrderStatusFromAdmin(
     statusMessage?: string;
   }
 ) {
-  const token = await currentUser.getIdToken();
+  const token = await currentUser.getIdToken(true);
   const response = await fetch(`/api/orders/${orderId}/status`, {
     method: "POST",
     headers: {
@@ -201,10 +201,16 @@ export async function updateOrderStatusFromAdmin(
     body: JSON.stringify(payload)
   });
 
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(body?.error || "No se pudo actualizar el pedido");
+  if (response.ok) return;
+
+  const body = (await response.json().catch(() => null)) as { error?: string } | null;
+
+  if (response.status === 503) {
+    await updateOrderStatus(orderId, payload);
+    return;
   }
+
+  throw new Error(body?.error || "No se pudo actualizar el pedido");
 }
 
 export async function registerOrderNotificationToken(

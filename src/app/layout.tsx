@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://menulabarra.vercel.app"),
   title: "La Barra",
   description: "Descubre todos los productos que la barra tiene para ti",
   manifest: "/manifest-customer.json",
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "La Barra",
     description: "Descubre todos los productos que la barra tiene para ti",
-    url: "https://menulabarra.vercel.app", // Reemplaza con tu URL real cuando la tengas
+    url: "https://menulabarra.vercel.app",
     siteName: "La Barra",
     images: [{ url: "/icon.svg" }],
     type: "website",

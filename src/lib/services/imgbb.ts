@@ -1,4 +1,4 @@
-export async function uploadToImgBB(file: File) {
+export async function uploadToImgBB(image: File | string) {
   const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
 
   if (!apiKey) {
@@ -6,7 +6,7 @@ export async function uploadToImgBB(file: File) {
   }
 
   const formData = new FormData();
-  formData.append("image", file);
+  formData.append("image", image);
 
   const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
     method: "POST",
@@ -20,4 +20,3 @@ export async function uploadToImgBB(file: File) {
   const payload = await response.json();
   return payload.data.url as string;
 }
-

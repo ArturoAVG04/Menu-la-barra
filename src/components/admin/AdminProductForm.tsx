@@ -6,14 +6,17 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
-  ImagePlus,
+  Images,
+  Link2,
   Palette,
   Percent,
   Plus,
+  Sparkles,
   Tag,
   Trash2,
   Edit2,
-  Type
+  Type,
+  UploadCloud
 } from "lucide-react";
 
 import { MenuCard } from "@/components/customer/MenuCard";
@@ -78,6 +81,148 @@ const initialModifier: any = {
   options: [{ id: crypto.randomUUID(), name: "", priceDelta: 0 }]
 };
 
+const IMAGE_HISTORY_STORAGE_KEY = "la-barra-admin-image-history";
+
+function uniqueUrls(urls: (string | undefined)[]) {
+  return [...new Set(urls.filter((url): url is string => Boolean(url?.trim())))];
+}
+
+function readImageHistory() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(IMAGE_HISTORY_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? uniqueUrls(parsed).slice(0, 60) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeImageHistory(urls: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(IMAGE_HISTORY_STORAGE_KEY, JSON.stringify(uniqueUrls(urls).slice(0, 60)));
+}
+
+function getDroppedImageSource(dataTransfer: DataTransfer) {
+  const imageFile = Array.from(dataTransfer.files).find((file) => file.type.startsWith("image/"));
+  if (imageFile) return imageFile;
+
+  const url = (dataTransfer.getData("text/uri-list") || dataTransfer.getData("text/plain")).trim();
+  return /^https?:\/\//i.test(url) ? url.split("\n")[0] : null;
+}
+
+function AdminImagePicker({
+  label,
+  value,
+  isUploading,
+  history,
+  helperText,
+  onUpload,
+  onSelect
+}: {
+  label: string;
+  value?: string;
+  isUploading: boolean;
+  history: string[];
+  helperText: string;
+  onUpload: (source: File | string) => void;
+  onSelect: (url: string) => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [sourceUrl, setSourceUrl] = useState("");
+
+  function uploadSource(source?: File | string | null) {
+    if (!source) return;
+    onUpload(source);
+    setSourceUrl("");
+  }
+
+  return (
+    <div className="space-y-3 text-left text-sm text-text">
+      <span>{label}</span>
+      <label
+        tabIndex={0}
+        className={[
+          "flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-card border border-dashed bg-surface px-4 py-5 text-center text-sm transition",
+          isDragging ? "border-brand bg-brand/10 text-brand" : "border-line text-text"
+        ].join(" ")}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragOver={(event) => event.preventDefault()}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setIsDragging(false);
+          uploadSource(getDroppedImageSource(event.dataTransfer));
+        }}
+        onPaste={(event) => uploadSource(getDroppedImageSource(event.clipboardData))}
+      >
+        <UploadCloud size={22} className="text-brand" />
+        <span className="font-semibold">
+          {isUploading ? "Subiendo..." : "Arrastra, pega o selecciona una imagen"}
+        </span>
+        <span className="max-w-md text-xs text-muted">{helperText}</span>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => uploadSource(event.target.files?.[0])}
+        />
+      </label>
+
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <div className="relative">
+          <Link2
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+            size={16}
+          />
+          <input
+            value={sourceUrl}
+            onChange={(event) => setSourceUrl(event.target.value)}
+            className="min-h-11 w-full rounded-card border border-line bg-surface px-10 py-3 text-left outline-none"
+            placeholder="Pegar URL de imagen"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => uploadSource(sourceUrl.trim())}
+          disabled={!sourceUrl.trim() || isUploading}
+          className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text disabled:text-muted"
+        >
+          Usar URL
+        </button>
+      </div>
+
+      {history.length > 0 && (
+        <div className="space-y-2 rounded-card border border-line bg-surface p-3">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase text-muted">
+            <Images size={14} />
+            Imágenes guardadas
+          </p>
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
+            {history.slice(0, 24).map((imageUrl) => (
+              <button
+                key={imageUrl}
+                type="button"
+                onClick={() => onSelect(imageUrl)}
+                className={[
+                  "relative aspect-square overflow-hidden rounded-lg border bg-panel",
+                  value === imageUrl ? "border-brand ring-2 ring-brand/30" : "border-line"
+                ].join(" ")}
+                title="Usar imagen"
+              >
+                <img src={imageUrl} alt="" className="h-full w-full object-contain p-1" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminProductForm({
   branch,
   allBranches,
@@ -89,7 +234,7 @@ export function AdminProductForm({
   section: "menu" | "themes";
   onNotify: (message: string) => void;
 }) {
-  const { branding, setBranding } = useAppState();
+  const { branding, setBranding, currentUser, role } = useAppState();
   const { categories, products } = useRealtimeMenu(branch?.id);
   const [menuTab, setMenuTab] = useState<"products" | "categories" | "modifiers">("products");
   const [product, setProduct] = useState<Product>(initialProduct);
@@ -106,6 +251,9 @@ export function AdminProductForm({
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isUploadingMenuCover, setIsUploadingMenuCover] = useState(false);
   const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [lastGeneratedDescription, setLastGeneratedDescription] = useState("");
+  const [imageHistory, setImageHistory] = useState<string[]>([]);
 
   const [showProductForm, setShowProductForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -121,10 +269,15 @@ export function AdminProductForm({
   ]);
 
   useEffect(() => {
+    setImageHistory(readImageHistory());
+  }, []);
+
+  useEffect(() => {
     setProduct({
       ...initialProduct,
       branchIds: branch ? [branch.id] : []
     });
+    setLastGeneratedDescription("");
     setCategoryName("");
     setExpandedProductId(null);
   }, [branch?.id]);
@@ -146,6 +299,23 @@ export function AdminProductForm({
   const selectedModifierIds = useMemo(
     () => new Set(product.modifiers.map((modifier) => modifier.id)),
     [product.modifiers]
+  );
+
+  const selectedCategoryName = useMemo(
+    () => categories.find((category) => category.id === product.categoryId)?.name,
+    [categories, product.categoryId]
+  );
+
+  const availableImageHistory = useMemo(
+    () =>
+      uniqueUrls([
+        branding.logoUrl,
+        branch?.coverImageUrl,
+        branch?.menuCoverImageUrl,
+        ...products.map((item) => item.imageUrl),
+        ...imageHistory
+      ]),
+    [branch?.coverImageUrl, branch?.menuCoverImageUrl, branding.logoUrl, imageHistory, products]
   );
 
   const previewProduct = useMemo<Product>(
@@ -447,11 +617,20 @@ export function AdminProductForm({
     }
   }
 
-  async function handleUploadLogo(file?: File) {
-    if (!branch || !file) return;
+  function rememberImageUrl(url: string) {
+    setImageHistory((current) => {
+      const next = uniqueUrls([url, ...current]);
+      writeImageHistory(next);
+      return next;
+    });
+  }
+
+  async function handleUploadLogo(source?: File | string) {
+    if (!branch || !source) return;
     setIsUploadingLogo(true);
     try {
-      const imageUrl = await uploadToImgBB(file);
+      const imageUrl = await uploadToImgBB(source);
+      rememberImageUrl(imageUrl);
       const updatedBranding = { ...branding, logoUrl: imageUrl };
       setBranding(updatedBranding);
       await saveBranding(branch.id, updatedBranding);
@@ -461,14 +640,15 @@ export function AdminProductForm({
     }
   }
 
-  async function handleUploadCover(file?: File, kind: "branch" | "menu" = "branch") {
-    if (!branch || !file) return;
+  async function handleUploadCover(source?: File | string, kind: "branch" | "menu" = "branch") {
+    if (!branch || !source) return;
 
     if (kind === "branch") setIsUploadingCover(true);
     if (kind === "menu") setIsUploadingMenuCover(true);
 
     try {
-      const imageUrl = await uploadToImgBB(file);
+      const imageUrl = await uploadToImgBB(source);
+      rememberImageUrl(imageUrl);
       const updatedBranch =
         kind === "branch"
           ? { ...branch, coverImageUrl: imageUrl }
@@ -481,11 +661,79 @@ export function AdminProductForm({
     }
   }
 
+  async function handleProductImageSource(source?: File | string | null) {
+    if (!source) return;
+
+    setIsUploadingProductImage(true);
+    try {
+      const imageUrl = await uploadToImgBB(source);
+      rememberImageUrl(imageUrl);
+      setProduct((current) => ({ ...current, imageUrl }));
+      onNotify("Imagen del producto lista");
+    } catch (error) {
+      console.error("Error al subir imagen:", error);
+      onNotify("No se pudo cargar la imagen");
+    } finally {
+      setIsUploadingProductImage(false);
+    }
+  }
+
+  async function fillGeneratedDescription() {
+    if (!product.name.trim()) return;
+    if (!currentUser || role !== "admin") {
+      onNotify("Necesitas iniciar sesión como administrador para generar la descripción.");
+      return;
+    }
+
+    setIsGeneratingDescription(true);
+
+    try {
+      const token = await currentUser.getIdToken(true);
+      const currentDescription = product.description.trim();
+      const isRegeneratingPrevious =
+        Boolean(lastGeneratedDescription) && currentDescription === lastGeneratedDescription.trim();
+
+      const response = await fetch("/api/admin/generate-description", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          productName: product.name.trim(),
+          categoryName: selectedCategoryName?.trim() || undefined,
+          notes: isRegeneratingPrevious ? undefined : currentDescription || undefined,
+          previousDescription: isRegeneratingPrevious ? currentDescription : lastGeneratedDescription || undefined
+        })
+      });
+
+      const body = (await response.json().catch(() => null)) as
+        | { description?: string; error?: string }
+        | null;
+
+      if (!response.ok || !body?.description) {
+        onNotify(body?.error || "No se pudo generar la descripción");
+        return;
+      }
+
+      const generatedDescription = body.description.trim();
+      setProduct((current) => ({ ...current, description: generatedDescription }));
+      setLastGeneratedDescription(generatedDescription);
+      onNotify("Descripción generada");
+    } catch (error) {
+      console.error("Error generando descripción:", error);
+      onNotify("No se pudo conectar con el generador de descripción.");
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  }
+
   function loadProductIntoEditor(item: Product) {
     setProduct({
       ...item,
       branchIds: item.branchIds?.length ? item.branchIds : [item.sucursalID]
     });
+    setLastGeneratedDescription("");
     setExpandedProductId(item.id);
     setShowProductForm(true);
   }
@@ -579,38 +827,46 @@ export function AdminProductForm({
         <section className="space-y-5 rounded-shell border border-line bg-panel p-6">
         <h2 className="text-2xl font-semibold text-text">Branding e Imágenes</h2>
 
-        <label className="flex min-h-11 cursor-pointer items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface px-4 py-4 text-sm text-text">
-          <ImagePlus size={18} className="text-brand" />
-          <span>{isUploadingLogo ? "Subiendo..." : "Subir Logotipo"}</span>
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(event) => void handleUploadLogo(event.target.files?.[0])}
+          <AdminImagePicker
+            label="Logotipo"
+            value={branding.logoUrl}
+            isUploading={isUploadingLogo}
+            history={availableImageHistory}
+            helperText="Ideal en PNG/WebP transparente o fondo claro."
+            onUpload={(source) => void handleUploadLogo(source)}
+            onSelect={(imageUrl) => {
+              rememberImageUrl(imageUrl);
+              const updatedBranding = { ...branding, logoUrl: imageUrl };
+              setBranding(updatedBranding);
+              void saveBranding(branch.id, updatedBranding);
+            }}
           />
-        </label>
 
-          <label className="flex min-h-11 cursor-pointer items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface px-4 py-4 text-center text-sm text-text">
-            <ImagePlus size={18} className="text-brand" />
-            <span>{isUploadingCover ? "Subiendo..." : "Portada sucursal"}</span>
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(event) => void handleUploadCover(event.target.files?.[0], "branch")}
-            />
-          </label>
+          <AdminImagePicker
+            label="Portada sucursal"
+            value={branch.coverImageUrl}
+            isUploading={isUploadingCover}
+            history={availableImageHistory}
+            helperText="Usa una foto horizontal amplia; se ajusta como fondo en escritorio y móvil."
+            onUpload={(source) => void handleUploadCover(source, "branch")}
+            onSelect={(imageUrl) => {
+              rememberImageUrl(imageUrl);
+              void saveBranch({ ...branch, coverImageUrl: imageUrl });
+            }}
+          />
 
-          <label className="flex min-h-11 cursor-pointer items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface px-4 py-4 text-center text-sm text-text">
-            <ImagePlus size={18} className="text-brand" />
-            <span>{isUploadingMenuCover ? "Subiendo..." : "Portada menú"}</span>
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(event) => void handleUploadCover(event.target.files?.[0], "menu")}
-            />
-          </label>
+          <AdminImagePicker
+            label="Portada menú"
+            value={branch.menuCoverImageUrl}
+            isUploading={isUploadingMenuCover}
+            history={availableImageHistory}
+            helperText="Usa una foto horizontal con el sujeto al centro para el encabezado del menú."
+            onUpload={(source) => void handleUploadCover(source, "menu")}
+            onSelect={(imageUrl) => {
+              rememberImageUrl(imageUrl);
+              void saveBranch({ ...branch, menuCoverImageUrl: imageUrl });
+            }}
+          />
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="overflow-hidden rounded-card border border-line bg-surface p-4 text-sm text-muted break-words">
@@ -692,13 +948,16 @@ export function AdminProductForm({
           {showProductForm ? (
             <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
               <section className="space-y-5 rounded-shell border border-line bg-panel p-6">
-                <form onSubmit={handleSaveProduct} className="grid gap-4 text-center lg:grid-cols-2">
+                <form onSubmit={handleSaveProduct} className="grid gap-4 text-left lg:grid-cols-2">
                   <label className="space-y-2 text-sm text-text">
                     <span>Nombre</span>
                     <input
                       value={product.name}
                       onChange={(event) => setProduct((current) => ({ ...current, name: event.target.value }))}
-                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
+                      onBlur={() => {
+                        if (!product.description.trim()) fillGeneratedDescription();
+                      }}
+                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-left outline-none"
                     />
                   </label>
 
@@ -709,7 +968,10 @@ export function AdminProductForm({
                       onChange={(event) =>
                         setProduct((current) => ({ ...current, categoryId: event.target.value }))
                       }
-                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
+                      onBlur={() => {
+                        if (!product.description.trim()) fillGeneratedDescription();
+                      }}
+                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-left outline-none"
                     >
                       <option value="">Selecciona</option>
                       {categories.map((category) => (
@@ -733,7 +995,7 @@ export function AdminProductForm({
                           sortOrder: Number(event.target.value) || 0
                         }))
                       }
-                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
+                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-left outline-none"
                       placeholder="1"
                     />
                   </label>
@@ -748,7 +1010,7 @@ export function AdminProductForm({
                       onChange={(event) =>
                         setProduct((current) => ({ ...current, price: Number(event.target.value) }))
                       }
-                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
+                      className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-left outline-none"
                     />
                   </label>
 
@@ -770,19 +1032,34 @@ export function AdminProductForm({
                             discountPercent: Number(event.target.value)
                           }))
                         }
-                        className="min-h-11 w-full rounded-card border border-line bg-surface px-10 py-3 text-center outline-none"
+                        className="min-h-11 w-full rounded-card border border-line bg-surface px-10 py-3 text-left outline-none"
                       />
                     </div>
                   </label>
 
                   <label className="space-y-2 text-sm text-text lg:col-span-2">
-                    <span>Descripción</span>
+                    <span className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <span>Descripción</span>
+                      <button
+                        type="button"
+                        onClick={fillGeneratedDescription}
+                        disabled={!product.name.trim() || isGeneratingDescription}
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line px-4 text-xs font-semibold text-text disabled:text-muted"
+                      >
+                        <Sparkles size={14} />
+                        {isGeneratingDescription
+                          ? "Generando..."
+                          : product.description.trim()
+                          ? "Mejorar descripción"
+                          : "Crear descripción"}
+                      </button>
+                    </span>
                     <textarea
                       value={product.description}
                       onChange={(event) =>
                         setProduct((current) => ({ ...current, description: event.target.value }))
                       }
-                      className="min-h-28 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
+                      className="min-h-28 w-full rounded-card border border-line bg-surface px-4 py-3 text-left [text-align:justify] outline-none"
                     />
                   </label>
 
@@ -794,7 +1071,7 @@ export function AdminProductForm({
                         return (
                           <label
                             key={item.id}
-                            className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text"
+                            className="grid min-h-11 grid-cols-[20px_1fr] items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-left text-sm text-text"
                           >
                             <input
                               type="checkbox"
@@ -808,7 +1085,7 @@ export function AdminProductForm({
                                 }))
                               }
                             />
-                            {item.name}
+                            <span className="min-w-0">{item.name}</span>
                           </label>
                         );
                       })}
@@ -835,7 +1112,7 @@ export function AdminProductForm({
                           return (
                             <label
                               key={modifier.id}
-                              className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text"
+                              className="grid min-h-[72px] grid-cols-[20px_1fr] items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-left text-sm text-text"
                             >
                               <input
                                 type="checkbox"
@@ -849,7 +1126,7 @@ export function AdminProductForm({
                                   }))
                                 }
                               />
-                              <div>
+                              <div className="min-w-0">
                                 <p className="font-semibold text-text">{modifier.name}</p>
                                 <p className="text-muted">{modifier.options.length} opciones</p>
                               </div>
@@ -864,26 +1141,20 @@ export function AdminProductForm({
                     </div>
                   </div>
 
-                  <label className="flex min-h-11 cursor-pointer items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface px-4 py-4 text-sm text-text lg:col-span-2">
-                    <ImagePlus size={18} className="text-brand" />
-                    <span>{isUploadingProductImage ? "Subiendo..." : "Imagen"}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={async (event) => {
-                        const file = event.target.files?.[0];
-                        if (!file) return;
-                        setIsUploadingProductImage(true);
-                        try {
-                          const imageUrl = await uploadToImgBB(file);
-                          setProduct((current) => ({ ...current, imageUrl }));
-                        } finally {
-                          setIsUploadingProductImage(false);
-                        }
+                  <div className="lg:col-span-2">
+                    <AdminImagePicker
+                      label="Imagen"
+                      value={product.imageUrl}
+                      isUploading={isUploadingProductImage}
+                      history={availableImageHistory}
+                      helperText="Para productos, una imagen cuadrada o 4:3 ayuda a que se vea completa."
+                      onUpload={(source) => void handleProductImageSource(source)}
+                      onSelect={(imageUrl) => {
+                        rememberImageUrl(imageUrl);
+                        setProduct((current) => ({ ...current, imageUrl }));
                       }}
                     />
-                  </label>
+                  </div>
 
                   {product.imageUrl && (
                     <div className="lg:col-span-2 flex flex-col items-center justify-center gap-4 rounded-card border border-line bg-surface p-2 text-center sm:flex-row">
@@ -894,7 +1165,7 @@ export function AdminProductForm({
                     </div>
                   )}
 
-                  <label className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text lg:col-span-2">
+                  <label className="grid min-h-11 grid-cols-[20px_1fr] items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-left text-sm text-text lg:col-span-2">
                     <input
                       type="checkbox"
                       checked={product.available}
@@ -902,7 +1173,7 @@ export function AdminProductForm({
                         setProduct((current) => ({ ...current, available: event.target.checked }))
                       }
                     />
-                    Disponible
+                    <span>Disponible</span>
                   </label>
 
                   <div className="lg:col-span-2 flex flex-col items-center justify-center gap-4 rounded-card border border-line bg-surface p-4 md:flex-row md:justify-between">
@@ -939,7 +1210,9 @@ export function AdminProductForm({
 
               <section className="space-y-4 rounded-shell border border-line bg-panel p-6">
                 <h2 className="text-2xl font-semibold text-text">Vista previa</h2>
-                <MenuCard product={previewProduct} onSelect={() => undefined} />
+                <div className="mx-auto w-full max-w-sm">
+                  <MenuCard product={previewProduct} onSelect={() => undefined} />
+                </div>
               </section>
             </div>
           ) : (
@@ -1181,7 +1454,7 @@ export function AdminProductForm({
                   onChange={(event) =>
                     setModifierDraft((current) => ({ ...current, name: event.target.value }))
                   }
-                  className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
+                  className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-left outline-none"
                   placeholder="Nombre"
                 />
 
@@ -1198,7 +1471,7 @@ export function AdminProductForm({
                         sortOrder: Number(event.target.value) || 0
                       }))
                     }
-                    className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
+                    className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-left outline-none"
                     placeholder="Ej: 1"
                   />
                 </label>
@@ -1212,13 +1485,13 @@ export function AdminProductForm({
                         type: event.target.value as ModifierTemplate["type"]
                       }))
                     }
-                    className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
+                    className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-left outline-none"
                   >
                     <option value="multiple">Múltiple</option>
                     <option value="single">Única</option>
                   </select>
 
-                  <label className="flex min-h-11 items-center justify-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text">
+                  <label className="grid min-h-11 grid-cols-[20px_1fr] items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-left text-sm text-text">
                     <input
                       type="checkbox"
                       checked={modifierDraft.required}
@@ -1229,7 +1502,7 @@ export function AdminProductForm({
                         }))
                       }
                     />
-                    Obligatoria
+                    <span>Obligatoria</span>
                   </label>
                 </div>
 
@@ -1246,7 +1519,7 @@ export function AdminProductForm({
                             )
                           }))
                         }
-                        className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
+                        className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-left outline-none"
                         placeholder="Opción"
                       />
                       <input
@@ -1264,7 +1537,7 @@ export function AdminProductForm({
                             )
                           }))
                         }
-                        className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-center outline-none"
+                        className="min-h-11 rounded-card border border-line bg-surface px-4 py-3 text-left outline-none"
                         placeholder="Precio"
                       />
                     </div>

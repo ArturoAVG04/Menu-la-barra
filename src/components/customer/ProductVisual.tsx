@@ -20,12 +20,12 @@ import {
 import type { Product } from "@/types";
 
 const palettes = [
-  "from-rose-950 via-stone-950 to-amber-950 text-rose-100",
-  "from-emerald-950 via-zinc-950 to-lime-950 text-emerald-100",
-  "from-orange-950 via-neutral-950 to-red-950 text-orange-100",
-  "from-fuchsia-950 via-stone-950 to-rose-950 text-fuchsia-100",
-  "from-teal-950 via-zinc-950 to-emerald-950 text-teal-100",
-  "from-yellow-950 via-neutral-950 to-stone-950 text-yellow-100"
+  "bg-rose-100 text-rose-800",
+  "bg-emerald-100 text-emerald-800",
+  "bg-amber-100 text-amber-900",
+  "bg-sky-100 text-sky-800",
+  "bg-teal-100 text-teal-800",
+  "bg-stone-200 text-stone-800"
 ];
 
 const iconRules = [
@@ -77,21 +77,18 @@ export function ProductImagePlaceholder({
     .toUpperCase();
 
   return (
-    <div className={`relative grid h-full w-full place-items-center overflow-hidden bg-gradient-to-br ${palette}`}>
-      <div className="absolute inset-x-6 top-0 h-px bg-white/25" />
-      <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full border border-white/10" />
-      <div className="absolute -bottom-12 -left-12 h-36 w-36 rounded-full border border-white/10" />
+    <div className={`grid h-full w-full place-items-center overflow-hidden ${palette}`}>
       <div className="grid place-items-center gap-2 text-center">
         <div
           className={[
-            "grid place-items-center rounded-full border border-white/15 bg-white/10 shadow-glow backdrop-blur",
+            "grid place-items-center rounded-full border border-current/15 bg-white/55",
             compact ? "h-20 w-20" : "h-24 w-24"
           ].join(" ")}
         >
           <Icon size={compact ? 36 : 44} strokeWidth={1.8} />
         </div>
         {initials && (
-          <span className="text-xs font-bold uppercase tracking-[0.24em] text-white/70">
+          <span className="text-xs font-bold uppercase tracking-wide opacity-70">
             {initials}
           </span>
         )}

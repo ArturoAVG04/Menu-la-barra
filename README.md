@@ -107,6 +107,18 @@ Archivo incluido:
 - Tambien elimina los tokens FCM asociados a esos pedidos.
 - La programacion del cron en Vercel usa horario UTC.
 
+## Generacion de descripciones con Gemini
+
+- El boton de descripcion del admin llama a `POST /api/admin/generate-description` desde `src/components/admin/AdminProductForm.tsx`.
+- El endpoint vive en `src/app/api/admin/generate-description/route.ts` y usa `GEMINI_API_KEY` solo desde backend.
+- En local, agrega `GEMINI_API_KEY` en `.env.local` y reinicia `npm run dev` despues de cambiar variables de entorno.
+- En Vercel, agrega `GEMINI_API_KEY` en Project Settings > Environment Variables.
+- Opcionalmente puedes definir `GEMINI_MODEL`; si no existe, el backend prueba modelos fallback compatibles.
+- El endpoint requiere un token Firebase valido con custom claim `role: admin` en `Authorization: Bearer <idToken>`.
+- Si acabas de asignar `role: admin`, cierra sesion o recarga el admin; el frontend fuerza refresh del token antes de llamar Gemini.
+- El texto del prompt esta en `buildPrompt()` dentro del endpoint.
+- Si se vuelve a generar una descripcion, el frontend manda la descripcion anterior como `previousDescription` para pedir una version distinta.
+
 ## Firestore sugerido
 
 ```text
@@ -160,4 +172,26 @@ orders/{orderId}
 
 ## Backlog de pre-lanzamiento
 
-- Revisa [PRELAUNCH_BACKLOG.md](/home/arturo/Proyectos/Menulabarra/PRELAUNCH_BACKLOG.md:1) para el plan tecnico actualizado antes de salir a mercado.
+- Revisa [Markdown/prelaunch-backlog.md](file:///home/arturo/Proyectos/Menulabarra/Markdown/prelaunch-backlog.md) para el plan técnico actualizado antes de salir a mercado.
+
+## Bitacora tecnica
+
+### 2026-05-26 - Diagnostico Gemini y documentacion
+
+- Se reviso el historial reciente con `git log --oneline` y el estado del worktree.
+- Se detecto que el admin de cliente permitia entrar con sesion Firebase, pero el endpoint de backend exigia custom claim `role: admin`; se alineo el helper de backend para aceptar una sesion Firebase verificada, consistente con el modelo actual del panel.
+- Se agregaron modelos fallback para Gemini: `GEMINI_MODEL`, `gemini-1.5-flash`, `gemini-1.5-flash-latest` y `gemini-2.0-flash`.
+- Se documento el flujo de generacion de descripciones, variables de entorno y archivos relevantes en este README.
+
+### 2026-05-26 - Rehabilitar role admin y refresh de token
+
+- Se volvio a exigir custom claim `role: admin` en `src/lib/server/auth.ts`.
+- `ProtectedAdmin` ahora bloquea el panel si el usuario no tiene `role: admin`.
+- La llamada de Gemini en `AdminProductForm` usa `currentUser.getIdToken(true)` para refrescar el token y tomar claims recien asignados.
+- `AppProviders` fuerza refresh del token al detectar sesion para actualizar `role`.
+
+### 2026-05-26 - Diagnostico de errores Gemini y puertos locales
+
+- Se mejoraron los mensajes de error del endpoint de Gemini para distinguir falta de token, token sin `role: admin` y errores de modelo/API de Gemini.
+- Se mantuvo la regla operativa de usar solo `localhost:3000` para desarrollo local de este proyecto.
+- Se agrego manejo de errores al refrescar tokens en `AppProviders` para no dejar `authReady` atorado si Firebase falla.

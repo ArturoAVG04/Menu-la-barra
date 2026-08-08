@@ -8,21 +8,21 @@ import { useAppState } from "@/components/providers/AppProviders";
 export function ProtectedAdmin({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { authReady, currentUser } = useAppState();
+  const { authReady, currentUser, role } = useAppState();
 
   useEffect(() => {
     if (!authReady) return;
     if (pathname !== "/admin") return;
-    if (!currentUser) {
+    if (!currentUser || role !== "admin") {
       router.replace("/login");
     }
-  }, [authReady, currentUser, pathname, router]);
+  }, [authReady, currentUser, pathname, role, router]);
 
   if (!authReady) {
     return null;
   }
 
-  if (!currentUser) {
+  if (!currentUser || role !== "admin") {
     return null;
   }
 

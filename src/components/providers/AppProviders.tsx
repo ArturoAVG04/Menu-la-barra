@@ -107,16 +107,24 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      setAuthReady(true);
-
       if (!user) {
+        setCurrentUser(null);
         setRole("guest");
+        setAuthReady(true);
         return;
       }
 
-      const token = user ? await user.getIdTokenResult() : null;
-      setRole(token?.claims.role === "admin" ? "admin" : "guest");
+      try {
+        await user.getIdToken(true);
+        const token = await user.getIdTokenResult(true);
+        setCurrentUser(user);
+        setRole(token?.claims.role === "admin" || token?.claims.admin === true ? "admin" : "guest");
+      } catch {
+        setCurrentUser(null);
+        setRole("guest");
+      } finally {
+        setAuthReady(true);
+      }
     });
 
     return unsubscribe;

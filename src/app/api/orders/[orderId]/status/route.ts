@@ -6,6 +6,15 @@ import {
   updateOrderAndSendNotifications,
   type OrderStatusUpdatePayload
 } from "@/lib/server/notifications";
+import type { OrderStatus } from "@/types";
+
+const allowedStatuses = new Set<OrderStatus>([
+  "new",
+  "preparing",
+  "ready",
+  "rejected",
+  "delivered"
+]);
 
 type RouteContext = {
   params: Promise<{
@@ -37,6 +46,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
     );
   }
 
-  await updateOrderAndSendNotifications(orderId, body);
-  return NextResponse.json({ ok: true });
+  if (!allowedStatuses.has(body.status)) {
+    return NextResponse.json({ error: "Estado de pedido inválido" }, { status: 400 });
+  }
+
+  try {
+    await updateOrderAndSendNotifications(orderId, body);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Error al actualizar estado del pedido:", error);
+    return NextResponse.json(
+      { error: "No se pudo actualizar el pedido" },
+      { status: 500 }
+    );
+  }
 }

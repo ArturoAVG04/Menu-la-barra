@@ -99,29 +99,33 @@ export async function updateOrderAndSendNotifications(
     return;
   }
 
-  const response = await adminMessaging().sendEachForMulticast({
-    tokens,
-    notification: pushPayload.notification,
-    data: pushPayload.data
-  });
+  try {
+    const response = await adminMessaging().sendEachForMulticast({
+      tokens,
+      notification: pushPayload.notification,
+      data: pushPayload.data
+    });
 
-  const invalidCodes = new Set([
-    "messaging/invalid-registration-token",
-    "messaging/registration-token-not-registered"
-  ]);
+    const invalidCodes = new Set([
+      "messaging/invalid-registration-token",
+      "messaging/registration-token-not-registered"
+    ]);
 
-  await Promise.all(
-    response.responses.map((item, index) => {
-      if (item.success) return Promise.resolve();
-      if (!item.error || !invalidCodes.has(item.error.code)) return Promise.resolve();
+    await Promise.all(
+      response.responses.map((item, index) => {
+        if (item.success) return Promise.resolve();
+        if (!item.error || !invalidCodes.has(item.error.code)) return Promise.resolve();
 
-      const invalidToken = tokens[index];
-      if (!invalidToken) return Promise.resolve();
+        const invalidToken = tokens[index];
+        if (!invalidToken) return Promise.resolve();
 
-      return adminDb()
-        .collection(ORDER_NOTIFICATION_COLLECTION)
-        .doc(getNotificationTokenDocumentId(orderId, invalidToken))
-        .delete();
-    })
-  );
+        return adminDb()
+          .collection(ORDER_NOTIFICATION_COLLECTION)
+          .doc(getNotificationTokenDocumentId(orderId, invalidToken))
+          .delete();
+      })
+    );
+  } catch (error) {
+    console.error("Error al enviar notificaciones del pedido:", error);
+  }
 }
