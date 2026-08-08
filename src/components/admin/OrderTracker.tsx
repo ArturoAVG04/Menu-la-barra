@@ -184,34 +184,92 @@ function CompactOrder({
   const shortCode = order.id.slice(-6).toUpperCase();
 
   return (
-    <article className="rounded-card border border-line bg-surface overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setExpanded((c) => !c)}
-        className="flex w-full flex-col items-center justify-center gap-3 px-3 py-3 text-center sm:flex-row sm:justify-between"
-      >
-        <div className="flex min-w-0 items-center justify-center gap-2.5">
+    <article className="rounded-card border border-line bg-surface overflow-hidden shadow-sm hover:border-brand/30 transition">
+      <div className="flex w-full items-center justify-between gap-2.5 p-3 text-left">
+        <button
+          type="button"
+          onClick={() => setExpanded((c) => !c)}
+          className="flex flex-1 min-w-0 items-center gap-2.5 text-left group"
+        >
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs font-bold text-brand">
             #{dayNumber}
           </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-text truncate">
-              {order.customerName || "Sin nombre"}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-semibold text-text truncate group-hover:text-brand transition">
+                {order.customerName || "Sin nombre"}
+              </p>
+              <ChevronDown
+                size={14}
+                className={[
+                  "text-muted shrink-0 transition-transform duration-200",
+                  expanded ? "rotate-180" : ""
+                ].join(" ")}
+              />
+            </div>
+            <p className="text-[10px] text-muted font-mono truncate">
+              {shortCode} · {currency(order.total)}
             </p>
-            <p className="text-[10px] text-muted font-mono">{shortCode}</p>
           </div>
+        </button>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {order.status === "new" && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAccept(order);
+                }}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-brand px-3 text-xs font-bold text-white shadow-glow hover:bg-accent active:scale-95 transition"
+              >
+                <ChefHat size={14} />
+                <span>Aceptar</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReject(order);
+                }}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-danger/30 bg-danger/10 text-danger hover:bg-danger hover:text-white active:scale-95 transition"
+                title="Rechazar pedido"
+              >
+                <XCircle size={15} />
+              </button>
+            </>
+          )}
+
+          {order.status === "preparing" && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReady(order);
+              }}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-brand px-3 text-xs font-bold text-white shadow-glow hover:bg-accent active:scale-95 transition"
+            >
+              <CheckCircle2 size={14} />
+              <span>Marcar listo</span>
+            </button>
+          )}
+
+          {order.status === "ready" && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelivered(order);
+              }}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-brand px-3 text-xs font-bold text-white shadow-glow hover:bg-accent active:scale-95 transition"
+            >
+              <PackageCheck size={14} />
+              <span>Entregado</span>
+            </button>
+          )}
         </div>
-        <div className="flex shrink-0 items-center justify-center gap-2">
-          <span className="text-xs font-semibold text-brand">{currency(order.total)}</span>
-          <ChevronDown
-            size={14}
-            className={[
-              "text-muted transition-transform duration-200",
-              expanded ? "rotate-180" : ""
-            ].join(" ")}
-          />
-        </div>
-      </button>
+      </div>
 
       {expanded && (
         <div className="border-t border-line px-3 pb-3">

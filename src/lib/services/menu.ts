@@ -88,9 +88,15 @@ export function subscribeOrders(branchId: string, callback: (orders: Order[]) =>
 }
 
 export function subscribeOrder(orderId: string, callback: (order: Order | null) => void) {
-  return onSnapshot(doc(db, "orders", orderId), (snapshot) => {
-    callback(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as Order) : null);
-  });
+  return onSnapshot(
+    doc(db, "orders", orderId),
+    (snapshot) => {
+      callback(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as Order) : null);
+    },
+    (error) => {
+      console.error("Error al escuchar cambios del pedido:", error);
+    }
+  );
 }
 
 function createTrackingToken() {
