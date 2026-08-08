@@ -1,6 +1,32 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import { requireAdminUser } from "@/lib/server/auth";
+
+export async function POST(request: NextRequest) {
+  if (isFirebaseAdminConfigured()) {
+    try {
+      await requireAdminUser(request);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "No autorizado." },
+        { status: 401 }
+      );
+    }
+  } else if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Firebase Admin SDK no está configurado en las variables de entorno de producción." },
+      { status: 503 }
+    );
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "GEMINI_API_KEY no está configurada en el servidor." },
+      { status: 503 }
+    );
+  }
 
 const GEMINI_MODELS = [
   process.env.GEMINI_MODEL?.trim(),
@@ -148,24 +174,6 @@ async function requestGeminiDescription({
   const responseBody = (await response.json().catch(() => null)) as GeminiResponse | null;
   return { response, responseBody, description: extractDescription(responseBody) };
 }
-
-export async function POST(request: NextRequest) {
-  try {
-    await requireAdminUser(request);
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "No autorizado." },
-      { status: 401 }
-    );
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "GEMINI_API_KEY no está configurada en el servidor." },
-      { status: 503 }
-    );
-  }
 
   const body = (await request.json().catch(() => null)) as GenerateDescriptionRequest | null;
   const productName = cleanInput(body?.productName, 120);

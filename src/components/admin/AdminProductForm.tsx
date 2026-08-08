@@ -748,14 +748,16 @@ export function AdminProductForm({
 
   if (section === "themes") {
     return (
-      <div className="grid gap-6 text-center xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="grid gap-6 text-left xl:grid-cols-[0.95fr_1.05fr]">
         <section className="space-y-5 rounded-shell border border-line bg-panel p-6">
-          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <div className="rounded-full bg-brand/10 p-3 text-brand">
-              <Palette size={18} />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-brand/10 p-3 text-brand">
+                <Palette size={18} />
+              </div>
+              <h2 className="text-2xl font-semibold text-text">Personalización visual</h2>
             </div>
-          <h2 className="text-2xl font-semibold text-text">Personalización visual</h2>
-        </div>
+          </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -896,8 +898,8 @@ export function AdminProductForm({
   }
 
   return (
-    <div className="space-y-6 text-center">
-      <div className="flex flex-wrap justify-center gap-2">
+    <div className="space-y-6 text-left">
+      <div className="flex flex-wrap justify-start gap-2">
         {[
           { id: "products", label: "PRODUCTOS" },
           { id: "categories", label: "CATEGORÍAS" },

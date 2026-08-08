@@ -372,7 +372,7 @@ export function AdminShell() {
         <div className={collapsed ? "w-full border-b border-line pb-4" : "border-b border-line pb-4"}>
           <div className={collapsed ? "flex justify-center" : "flex items-center justify-between gap-3"}>
             {!collapsed && (
-              <div className="space-y-3 text-center">
+              <div className="space-y-3 text-left">
                 <div>
                   <p className="text-sm uppercase tracking-[0.25em] text-brand">La Barra</p>
                   <h1 className="mt-2 text-xl font-semibold text-text">Admin</h1>
@@ -397,12 +397,12 @@ export function AdminShell() {
 
         <div className="flex flex-1 flex-col overflow-y-auto py-6 scrollbar-none">
           {!collapsed && (
-            <div className="mb-6 space-y-2 text-center">
+            <div className="mb-6 space-y-2 text-left">
               <span className="px-2 text-[10px] font-bold uppercase tracking-widest text-muted">Sucursal activa</span>
               <select
                 value={adminBranchId}
                 onChange={(event) => setAdminBranchId(event.target.value)}
-                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-text outline-none transition focus:border-brand"
+                className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-left text-sm text-text outline-none transition focus:border-brand"
               >
                 <option value="">Selecciona</option>
                 {branches.map((branch) => (
@@ -417,7 +417,7 @@ export function AdminShell() {
           <nav className={[
             "transition-all duration-300",
             !collapsed
-              ? "space-y-1 rounded-card border border-line bg-surface/40 p-1.5 text-center shadow-inner"
+              ? "space-y-1 rounded-card border border-line bg-surface/40 p-1.5 text-left shadow-inner"
               : "flex w-full flex-col items-center gap-3"
           ].join(" ")}>
             {NAV_ITEMS.map((item) => {
@@ -433,11 +433,11 @@ export function AdminShell() {
                     setMobileDrawerOpen(false);
                   }}
                   className={[
-                    "inline-flex min-h-[44px] w-full items-center justify-center gap-3 rounded-card px-4 py-3 text-center text-sm font-semibold transition-all duration-200",
+                    "inline-flex min-h-[44px] w-full items-center justify-start gap-3 rounded-card px-4 py-3 text-left text-sm font-semibold transition-all duration-200",
                     active
                       ? "bg-brand text-white shadow-glow"
                       : "border border-transparent text-text hover:border-line hover:bg-surface/80",
-                    collapsed ? "h-12 w-12 rounded-full px-0 py-0" : ""
+                    collapsed ? "h-12 w-12 items-center justify-center rounded-full px-0 py-0" : ""
                   ].join(" ")}
                   title={item.label}
                 >
@@ -478,7 +478,7 @@ export function AdminShell() {
   }
 
   return (
-    <div className="min-h-screen bg-panel text-center text-text">
+    <div className="min-h-screen bg-panel text-left text-text">
       {/* Notificaciones Toasts - Siempre arriba del todo en z-index */}
       <div className="pointer-events-none fixed bottom-10 left-0 right-0 z-[60] flex flex-col items-center gap-2 px-4">
         {notices.map((notice) => (
@@ -504,7 +504,7 @@ export function AdminShell() {
 
         {/* Área de Contenido */}
         <div className="flex flex-1 flex-col min-w-0">
-          <header className="sticky top-0 z-40 flex flex-col items-center justify-center gap-3 border-b border-line bg-panel/95 px-4 py-3 text-center backdrop-blur sm:flex-row sm:justify-between md:px-6">
+          <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-line bg-panel/95 px-4 py-3 text-left backdrop-blur md:px-6">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -518,7 +518,7 @@ export function AdminShell() {
               </h1>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={toggleTheme}
@@ -549,7 +549,7 @@ export function AdminShell() {
             </div>
           )}
 
-          <main className="space-y-6 p-4 text-center md:p-8">
+          <main className="space-y-6 p-4 text-left md:p-8">
             {section === "overview" && (
               <div className="space-y-6">
               <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between">

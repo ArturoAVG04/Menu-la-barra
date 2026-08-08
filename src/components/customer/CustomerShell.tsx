@@ -1580,35 +1580,34 @@ export function CustomerShell() {
       )}
 
       {editingProduct && (
-        <div className="fixed inset-0 z-[60] bg-black/55 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] bg-black/60 p-4 backdrop-blur-sm">
           <div className="mx-auto flex h-full max-w-2xl items-end md:items-center">
             <div
               ref={editorPanelRef}
-              className="max-h-[88vh] w-full overflow-y-auto rounded-shell border border-line bg-panel p-5 shadow-glow md:max-w-xl md:p-6"
+              className="relative max-h-[88vh] w-full overflow-y-auto overflow-x-hidden rounded-shell border border-line bg-panel shadow-glow md:max-w-xl"
             >
-              <div className="flex items-center justify-end">
+              <div className="relative h-60 w-full overflow-hidden bg-surface sm:h-72">
+                <ProductVisual product={editingProduct} />
+                <div className="absolute inset-0 bg-gradient-to-t from-panel via-panel/30 to-transparent" />
                 <button
                   type="button"
                   onClick={closeEditor}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-text"
+                  className="absolute right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/65 text-white backdrop-blur-md transition hover:bg-black/80 active:scale-95 shadow-glow"
                   aria-label="Cerrar edición del producto"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="mt-5">
-                <div className="relative mb-4 h-52 overflow-hidden rounded-card bg-surface">
-                  <ProductVisual product={editingProduct} compact />
-                </div>
-                <h3 className="text-2xl font-semibold text-text">{editingProduct.name}</h3>
-                <p className="mt-1.5 text-sm text-muted">{editingProduct.description}</p>
-                <p className="mt-3 text-sm font-semibold text-brand">
+              <div className="p-5 md:p-6 -mt-6 relative z-10">
+                <h3 className="text-2xl font-bold text-text">{editingProduct.name}</h3>
+                <p className="mt-1.5 text-sm text-muted leading-relaxed">{editingProduct.description}</p>
+                <p className="mt-3 text-base font-bold text-brand">
                   Base {currency(editorBasePrice)}
                 </p>
               </div>
 
-              <div className="mt-5 space-y-4">
+              <div className="px-5 pb-5 md:px-6 md:pb-6 space-y-4">
                 {[...editingProduct.modifiers]
                   .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
                   .map((modifier) => (
