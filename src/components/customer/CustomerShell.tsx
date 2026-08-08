@@ -35,6 +35,7 @@ import {
   createOrder,
   fetchTrackedOrder,
   registerOrderNotificationToken,
+  subscribeOrder
 } from "@/lib/services/menu";
 import { currency } from "@/lib/utils";
 import type { Branch, CartItem, Product, PublicTrackedOrder } from "@/types";
@@ -313,47 +314,65 @@ export function CustomerShell() {
     const trackedOrderToken = activeOrderTrackingToken;
     let cancelled = false;
 
-    async function refreshOrder() {
+    async function syncOrderAPI() {
       try {
         const order = await fetchTrackedOrder(trackedOrderId, trackedOrderToken);
         if (cancelled) return;
-
-        setActiveOrder(order);
-
-        if (order?.status === "delivered") {
-          setAddNotice("Pedido entregado");
-          setTrackingOpen(false);
-          setActiveOrder(null);
-          setLastNotifiedStatus(null);
-          window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
-          setActiveOrderId(null);
-          setActiveOrderTrackingToken(null);
-          return;
+        if (order) {
+          setActiveOrder(order);
         }
-
-        if (!order) {
-          window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
-          setActiveOrder(null);
-          setActiveOrderId(null);
-          setActiveOrderTrackingToken(null);
-          setTrackingOpen(false);
-          setLastNotifiedStatus(null);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Error al consultar seguimiento del pedido:", error);
-        }
+      } catch (_err) {
+        // Fallback a Firestore tiempo real si la API responde 503 o falla
       }
     }
 
-    void refreshOrder();
-    const intervalId = window.setInterval(() => {
-      void refreshOrder();
-    }, TRACKING_POLL_INTERVAL_MS);
+    void syncOrderAPI();
+
+    const unsubscribe = subscribeOrder(trackedOrderId, (order) => {
+      if (cancelled) return;
+
+      if (!order) {
+        window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+        setActiveOrder(null);
+        setActiveOrderId(null);
+        setActiveOrderTrackingToken(null);
+        setTrackingOpen(false);
+        setLastNotifiedStatus(null);
+        return;
+      }
+
+      if (order.status === "delivered") {
+        setAddNotice("Pedido entregado");
+        setTrackingOpen(false);
+        setActiveOrder(null);
+        setLastNotifiedStatus(null);
+        window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+        setActiveOrderId(null);
+        setActiveOrderTrackingToken(null);
+        return;
+      }
+
+      setActiveOrder({
+        id: order.id,
+        items: order.items ?? [],
+        customerName: order.customerName ?? "",
+        customerPhone: order.customerPhone ?? "",
+        orderNote: order.orderNote ?? "",
+        subtotal: order.subtotal ?? 0,
+        tipPercent: order.tipPercent ?? 0,
+        tipAmount: order.tipAmount ?? 0,
+        total: order.total ?? 0,
+        status: order.status ?? "new",
+        estimatedMinutes: order.estimatedMinutes,
+        estimatedReadyAt: order.estimatedReadyAt,
+        statusMessage: order.statusMessage ?? "",
+        createdAt: order.createdAt ?? Date.now()
+      });
+    });
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+      unsubscribe();
     };
   }, [activeOrderId, activeOrderTrackingToken]);
 
