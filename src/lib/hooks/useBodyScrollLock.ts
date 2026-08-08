@@ -17,10 +17,10 @@ export function useBodyScrollLock(locked: boolean) {
     document.documentElement.style.overscrollBehavior = "none";
 
     return () => {
-      document.body.style.overflow = bodyOverflow;
-      document.documentElement.style.overflow = htmlOverflow;
-      document.body.style.overscrollBehavior = bodyOverscroll;
-      document.documentElement.style.overscrollBehavior = htmlOverscroll;
+      document.body.style.overflow = bodyOverflow || "";
+      document.documentElement.style.overflow = htmlOverflow || "";
+      document.body.style.overscrollBehavior = bodyOverscroll || "";
+      document.documentElement.style.overscrollBehavior = htmlOverscroll || "";
     };
   }, [locked]);
 }

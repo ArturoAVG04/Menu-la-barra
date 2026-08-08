@@ -15,23 +15,12 @@ function isLocalDev() {
 
 export function PWARegistration() {
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
-    if (isLocalDev()) {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        registrations.forEach((registration) => {
-          void registration.unregister();
-        });
-      });
+    const isStrictLocalhost =
+      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
-      if ("caches" in window) {
-        void caches.keys().then((keys) => {
-          keys.forEach((key) => {
-            void caches.delete(key);
-          });
-        });
-      }
-
+    if (isStrictLocalhost && process.env.NODE_ENV !== "production" && !getFirebaseVapidKey()) {
       return;
     }
 
@@ -39,31 +28,16 @@ export function PWARegistration() {
   }, []);
 
   useEffect(() => {
-    async function requestNotifications() {
-      if (isLocalDev()) return;
-
-      const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    async function syncPushTokenIfGranted() {
       const vapidKey = getFirebaseVapidKey();
-
-      if (!vapidKey || typeof Notification === "undefined") {
-        return;
-      }
+      if (!vapidKey || typeof Notification === "undefined") return;
 
       if (Notification.permission === "granted") {
         await getBrowserPushToken().catch(() => undefined);
-        return;
-      }
-
-      if (isIOS && !(window.navigator as Navigator & { standalone?: boolean }).standalone) {
-        return;
-      }
-
-      if (Notification.permission === "default") {
-        await Notification.requestPermission();
       }
     }
 
-    void requestNotifications();
+    void syncPushTokenIfGranted();
   }, []);
 
   return null;

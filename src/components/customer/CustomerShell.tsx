@@ -191,6 +191,45 @@ export function CustomerShell() {
   const [showDetailsConfirm, setShowDetailsConfirm] = useState(false);
   const editorPanelRef = useRef<HTMLDivElement | null>(null);
 
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      return Notification.permission;
+    }
+    return "default";
+  });
+
+  const isIOS = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+  }, []);
+
+  const isStandalone = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      (window.navigator as Navigator & { standalone?: boolean }).standalone ||
+      window.matchMedia("(display-mode: standalone)").matches
+    );
+  }, []);
+
+  async function handleEnableNotifications() {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === "granted" && activeOrderId && activeBranch) {
+        const token = await getBrowserPushToken().catch(() => null);
+        if (token) {
+          await registerOrderNotificationToken(activeOrderId, activeBranch.id, token).catch(() => undefined);
+        }
+        setAddNotice("¡Notificaciones activadas!");
+      } else if (permission === "denied") {
+        setAddNotice("Las notificaciones están bloqueadas en tu navegador.");
+      }
+    } catch (err) {
+      console.error("Error al solicitar permiso de notificaciones:", err);
+    }
+  }
+
   async function linkPushTokenToOrder(orderId: string, branchId: string) {
     const token = await getBrowserPushToken().catch(() => null);
     if (!token) return;
@@ -328,29 +367,26 @@ export function CustomerShell() {
     
     if (lastNotifiedStatus === null) {
       setLastNotifiedStatus(activeOrder.status);
-      if (activeOrder.status !== "delivered") {
-        setTrackingOpen(true);
-      }
       return;
     }
     if (activeOrder.status === lastNotifiedStatus) return;
 
     setLastNotifiedStatus(activeOrder.status);
-    
-    // Always open tracking if there's an active non-delivered order on mount or update
-    if (activeOrder.status !== "delivered") {
-      setTrackingOpen(true);
+
+    const statusLabel = orderStatusLabels[activeOrder.status] ?? activeOrder.status;
+    setAddNotice(`Tu pedido cambió a: ${statusLabel}`);
+
+    if (typeof Notification !== "undefined" && Notification.permission === "granted" && activeOrder.status !== "new") {
+      try {
+        const notification = new Notification("Actualización de tu pedido", {
+          body: activeOrder.statusMessage || `Tu pedido ahora está: ${statusLabel}.`,
+          icon: "/icon.svg"
+        });
+        notification.onclick = () => window.focus();
+      } catch (_err) {
+        // ignore notification creation error
+      }
     }
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    if (activeOrder.status === "new") return;
-
-    const notification = new Notification("Actualización de tu pedido", {
-      body:
-        activeOrder.statusMessage ||
-        `Tu pedido ahora está en estado: ${orderStatusLabels[activeOrder.status]}.`
-    });
-
-    notification.onclick = () => window.focus();
   }, [activeOrder, lastNotifiedStatus]);
 
   useEffect(() => {
@@ -695,7 +731,7 @@ export function CustomerShell() {
         JSON.stringify({ id: order.id, trackingToken: order.trackingToken })
       );
       void linkPushTokenToOrder(order.id, activeBranch.id);
-      setTrackingOpen(true);
+      setTrackingOpen(false);
       setSubmitState("success");
       setSubmitMessage("Tu pedido fue enviado correctamente.");
     } catch (error) {
@@ -962,20 +998,27 @@ export function CustomerShell() {
           <button
             type="button"
             onClick={() => setTrackingOpen(true)}
-            className="flex w-full items-center justify-between rounded-shell border border-line bg-panel px-4 py-3 text-left shadow-glow md:ml-auto md:max-w-md"
+            className="flex w-full items-center justify-between rounded-full border border-brand/40 bg-panel px-5 py-3.5 text-left shadow-glow hover:border-brand md:ml-auto md:max-w-md transition active:scale-[0.98]"
           >
-            <div className="flex items-center gap-3">
-              <div className="rounded-full bg-brand/10 p-3 text-brand">
-                <Clock3 size={18} />
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white shadow-glow">
+                <Clock3 size={20} className="animate-pulse" />
+                <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-accent ring-2 ring-panel" />
               </div>
-              <div>
-                <p className="font-semibold text-text">Seguimiento de pedido</p>
-                <p className="text-sm text-muted">
+              <div className="min-w-0">
+                <p className="font-bold text-text text-sm truncate">
+                  Pedido #{activeOrder.id.slice(-6).toUpperCase()}
+                </p>
+                <p className="text-xs font-semibold text-brand truncate">
                   {orderStatusLabels[activeOrder.status]}
+                  {activeOrderCountdownLabel ? ` · ${activeOrderCountdownLabel}` : ""}
                 </p>
               </div>
             </div>
-            <ChevronRight size={18} className="text-muted" />
+            <div className="flex items-center gap-1 text-xs font-bold text-brand shrink-0 pl-2">
+              <span>Ver detalle</span>
+              <ChevronRight size={16} />
+            </div>
           </button>
         ) : cart.length > 0 && (
           <button
@@ -1372,6 +1415,29 @@ export function CustomerShell() {
                   )}
                 </div>
 
+                {notificationPermission !== "granted" && (
+                  <div className="rounded-card border border-brand/30 bg-brand/5 p-4 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-text">Notificaciones de tu pedido</p>
+                        <p className="text-xs text-muted">Recibe avisos cuando cambie el estado</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleEnableNotifications}
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-brand px-4 py-2 text-xs font-bold text-white shadow-glow transition active:scale-95"
+                      >
+                        Activar notificaciones
+                      </button>
+                    </div>
+                    {isIOS && !isStandalone && (
+                      <p className="text-xs text-muted pt-1 border-t border-line/40">
+                        💡 En iPhone, para recibir alertas cuando la pantalla esté apagada: Toca Compartir ⎋ → "Agregar a inicio".
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {activeOrder.statusMessage && (
                   <div className="rounded-card border border-line bg-surface p-4">
                     <p className="text-center text-sm text-text">{activeOrder.statusMessage}</p>
@@ -1384,7 +1450,7 @@ export function CustomerShell() {
                   </div>
                 )}
 
-                <div className="grid gap-3 md:grid-cols-4">
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
                   {[
                     { key: "new", label: "Recibido", icon: ShoppingBag },
                     { key: "preparing", label: "En cocina", icon: Clock3 },
@@ -1403,25 +1469,72 @@ export function CustomerShell() {
                       <div
                         key={step.key}
                         className={[
-                          "rounded-card border p-4",
+                          "rounded-card border p-3 md:p-4",
                           isActive ? "border-brand bg-brand/10" : "border-line bg-surface"
                         ].join(" ")}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5">
                           <div
                             className={[
-                              "grid h-10 w-10 place-items-center rounded-full",
+                              "grid h-9 w-9 shrink-0 place-items-center rounded-full",
                               isActive ? "bg-brand text-white" : "bg-panel text-muted"
                             ].join(" ")}
                           >
-                            <Icon size={18} />
+                            <Icon size={16} />
                           </div>
-                          <p className="text-sm font-semibold text-text">{step.label}</p>
+                          <p className="text-xs md:text-sm font-semibold text-text">{step.label}</p>
                         </div>
                       </div>
                     );
                   })}
                 </div>
+
+                {activeOrder.items && activeOrder.items.length > 0 && (
+                  <div className="rounded-card border border-line bg-surface p-4 space-y-3">
+                    <div className="flex items-center justify-between border-b border-line pb-2">
+                      <p className="font-semibold text-sm text-text">Resumen de lo que pediste</p>
+                      <span className="text-xs text-muted">
+                        {activeOrder.items.reduce((s, i) => s + i.quantity, 0)} ítems
+                      </span>
+                    </div>
+                    <div className="divide-y divide-line/40">
+                      {activeOrder.items.map((item, idx) => (
+                        <div key={item.id || idx} className="py-2 flex items-start justify-between text-sm gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-text">{item.quantity}x {item.name}</p>
+                            {item.selectedModifiers && item.selectedModifiers.length > 0 && (
+                              <p className="text-xs text-muted mt-0.5">
+                                {item.selectedModifiers
+                                  .map((m) => (m.optionNames?.length ? `${m.modifierName}: ${m.optionNames.join(", ")}` : null))
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </p>
+                            )}
+                          </div>
+                          <span className="font-semibold text-brand text-xs shrink-0">{currency(item.unitPrice * item.quantity)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t border-line pt-2 text-xs space-y-1 text-muted">
+                      {typeof activeOrder.subtotal === "number" && (
+                        <div className="flex justify-between">
+                          <span>Subtotal</span>
+                          <span>{currency(activeOrder.subtotal)}</span>
+                        </div>
+                      )}
+                      {typeof activeOrder.tipAmount === "number" && activeOrder.tipAmount > 0 && (
+                        <div className="flex justify-between">
+                          <span>Propina</span>
+                          <span>{currency(activeOrder.tipAmount)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-bold text-sm text-text pt-1.5 border-t border-line/40">
+                        <span>Total</span>
+                        <span className="text-brand">{currency(activeOrder.total)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {activeOrder.status === "rejected" && (
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -1604,6 +1717,7 @@ export function CustomerShell() {
                       setSubmitState("idle");
                       setSubmitMessage("");
                       setSubmittedOrderWhatsappHref(null);
+                      setTrackingOpen(false);
                     }}
                     className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white"
                   >
