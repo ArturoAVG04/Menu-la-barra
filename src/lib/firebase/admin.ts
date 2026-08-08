@@ -4,11 +4,17 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 
 function sanitizeEnv(value?: string) {
-  return value?.trim().replace(/^['"]|['"]$/g, "") ?? "";
+  if (!value) return "";
+  let clean = value.trim();
+  if ((clean.startsWith('"') && clean.endsWith('"')) || (clean.startsWith("'") && clean.endsWith("'"))) {
+    clean = clean.slice(1, -1).trim();
+  }
+  return clean;
 }
 
 function getPrivateKey() {
   const value = sanitizeEnv(process.env.FIREBASE_ADMIN_PRIVATE_KEY);
+  if (!value) return "";
   return value.replace(/\\n/g, "\n");
 }
 

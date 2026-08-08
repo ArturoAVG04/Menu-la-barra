@@ -13,17 +13,17 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-  } else if (process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "Firebase Admin SDK no está configurado en las variables de entorno de producción." },
-      { status: 503 }
-    );
+  } else {
+    const authorization = request.headers.get("authorization");
+    if (!authorization?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Falta iniciar sesión de administrador." }, { status: 401 });
+    }
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "GEMINI_API_KEY no está configurada en el servidor." },
+      { error: "GEMINI_API_KEY no está configurada en Vercel -> Settings -> Environment Variables." },
       { status: 503 }
     );
   }
