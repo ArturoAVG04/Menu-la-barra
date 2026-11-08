@@ -224,7 +224,8 @@ export async function updateOrderStatusFromAdmin(
 export async function registerOrderNotificationToken(
   orderId: string,
   branchId: string,
-  token: string
+  token: string,
+  trackingToken: string
 ) {
   const response = await fetch(`/api/orders/${orderId}/notifications`, {
     method: "POST",
@@ -233,7 +234,8 @@ export async function registerOrderNotificationToken(
     },
     body: JSON.stringify({
       token,
-      branchId
+      branchId,
+      trackingToken
     })
   });
 
@@ -320,4 +322,27 @@ export function subscribeBranding(
 
 export async function saveBranding(branchId: string, settings: BrandingSettings) {
   return setDoc(doc(db, "branding", branchId), settings, { merge: true });
+}
+
+/** Avisa al admin (push) que entró un pedido nuevo. No bloquea al cliente si falla. */
+export async function notifyAdminOfNewOrder(orderId: string, trackingToken: string) {
+  await fetch(`/api/orders/${orderId}/created`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ trackingToken })
+  }).catch(() => undefined);
+}
+
+/** Registra este dispositivo del admin para recibir avisos de pedidos nuevos. */
+export async function registerAdminNotificationToken(currentUser: User, token: string) {
+  const idToken = await currentUser.getIdToken();
+  const response = await fetch("/api/admin/notification-token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ token })
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error || "No se pudo activar las notificaciones");
+  }
 }

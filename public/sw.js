@@ -1,13 +1,15 @@
-const CACHE_NAME = "la-barra-shell-v5";
+const CACHE_NAME = "la-barra-shell-v6";
 const APP_SHELL = [
   "/",
   "/admin",
   "/customer",
-  "/login",
+  "/admin/login",
   "/manifest.json",
   "/manifest-admin.json",
   "/manifest-customer.json",
-  "/icon.svg"
+  "/icon.svg",
+  "/icons/icon-192.png",
+  "/icons/badge-96.png"
 ];
 
 function isNavigationRequest(request) {
@@ -106,8 +108,9 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: "/icon.svg",
-      badge: "/icon.svg",
+      icon: data.url.startsWith("/admin") ? "/icons/admin/icon-192.png" : "/icons/icon-192.png",
+      badge: "/icons/badge-96.png",
+      vibrate: [200, 100, 200],
       data: {
         url: data.url
       }

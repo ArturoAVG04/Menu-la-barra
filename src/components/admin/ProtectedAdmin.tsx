@@ -14,7 +14,7 @@ export function ProtectedAdmin({ children }: { children: React.ReactNode }) {
     if (!authReady) return;
     if (pathname !== "/admin") return;
     if (!currentUser || role !== "admin") {
-      router.replace("/login");
+      router.replace("/admin/login");
     }
   }, [authReady, currentUser, pathname, role, router]);
 

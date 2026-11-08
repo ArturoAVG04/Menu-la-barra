@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { THEME_STORAGE_KEY } from "@/lib/theme";
+import { THEME_STORAGE_KEY, resolveInitialTheme } from "@/lib/theme";
 
 type Theme = "light" | "dark";
 
@@ -18,11 +18,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme: Theme = storedTheme ?? "light";
 
   useEffect(() => {
-    setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    setTheme(resolveInitialTheme());
   }, []);
 
   useEffect(() => {
     if (!storedTheme) return;
+    (window as unknown as { __laBarraTheme?: Theme }).__laBarraTheme = storedTheme;
     document.documentElement.dataset.theme = storedTheme;
     document.documentElement.style.colorScheme = storedTheme;
     window.localStorage.setItem(THEME_STORAGE_KEY, storedTheme);

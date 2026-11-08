@@ -15,6 +15,8 @@ import {
   ShieldCheck,
   Store,
   SunMedium,
+  Bell,
+  BellRing,
   Trash2
 } from "lucide-react";
 
@@ -24,11 +26,13 @@ import { useAppState } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useScrollToTopOnChange } from "@/lib/hooks/useScrollToTopOnChange";
+import { getBrowserPushToken } from "@/lib/pwa/notifications";
 import {
   deleteBranch,
   saveBranch,
   subscribeOrders,
-  updateOrderStatusFromAdmin
+  updateOrderStatusFromAdmin,
+  registerAdminNotificationToken
 } from "@/lib/services/menu";
 import {
   WEEK_DAYS,
@@ -113,6 +117,47 @@ export function AdminShell() {
 
   useBodyScrollLock(mobileDrawerOpen || showCreateBranch);
   useScrollToTopOnChange([section, adminBranchId]);
+
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | "unsupported">("default");
+
+  async function syncAdminPushToken(showNotice: boolean) {
+    if (!currentUser) return;
+    const token = await getBrowserPushToken().catch(() => null);
+    if (!token) {
+      if (showNotice) notify("No se pudo activar los avisos en este dispositivo.");
+      return;
+    }
+    try {
+      await registerAdminNotificationToken(currentUser, token);
+      if (showNotice) notify("Avisos de pedidos nuevos activados en este dispositivo.");
+    } catch (error) {
+      if (showNotice) notify(error instanceof Error ? error.message : "No se pudo activar los avisos.");
+    }
+  }
+
+  async function handleEnableAdminPush() {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    const permission = await Notification.requestPermission();
+    setPushPermission(permission);
+    if (permission === "granted") {
+      await syncAdminPushToken(true);
+    } else {
+      notify("Las notificaciones están bloqueadas. Actívalas en los ajustes del navegador o de la app.");
+    }
+  }
+
+  // Si ya hay permiso, registrar (o refrescar) el token de este dispositivo al abrir el panel
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setPushPermission("unsupported");
+      return;
+    }
+    setPushPermission(Notification.permission);
+    if (Notification.permission === "granted" && currentUser) {
+      void syncAdminPushToken(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   function notify(message: string) {
     const id = crypto.randomUUID();
@@ -519,6 +564,28 @@ export function AdminShell() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-3">
+              {pushPermission !== "unsupported" && (
+                <button
+                  type="button"
+                  onClick={() => void handleEnableAdminPush()}
+                  title={
+                    pushPermission === "granted"
+                      ? "Avisos de pedidos activos en este dispositivo (toca para volver a registrar)"
+                      : "Activar avisos de pedidos nuevos"
+                  }
+                  className={[
+                    "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold",
+                    pushPermission === "granted"
+                      ? "border border-line bg-surface text-text"
+                      : "bg-brand text-surface"
+                  ].join(" ")}
+                >
+                  {pushPermission === "granted" ? <BellRing size={16} /> : <Bell size={16} />}
+                  <span className="hidden sm:inline">
+                    {pushPermission === "granted" ? "Avisos activos" : "Activar avisos"}
+                  </span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={toggleTheme}

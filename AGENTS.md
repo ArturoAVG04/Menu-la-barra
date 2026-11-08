@@ -38,3 +38,12 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - Parpadeo blanco: `ThemeProvider` arrancaba en "light" y además sobrescribía el tema guardado antes de leerlo. Ahora un script en `<head>` (`src/lib/theme.ts`, `THEME_INIT_SCRIPT`) aplica el tema guardado (o el del sistema si no hay uno) antes de pintar, y el provider lee ese valor.
 - Barra flotante del pedido activo: fondo `bg-brand` con texto `text-surface`, para que contraste en modo claro y oscuro.
 - `sw.js`: el caché pasa a v5 para que las PWA instaladas tomen la versión nueva.
+
+### 2026-11-07 · Tema persistente, PWA admin separada y notificaciones push — Claude
+- **Tema:** la hidratación de React borraba `data-theme` de `<html>` y el provider guardaba "light". Ahora `resolveInitialTheme()` lee localStorage o el sistema, y el script de `<head>` tiene un MutationObserver que vuelve a poner el atributo. Verificado con puppeteer: alternar el tema y recargar lo conserva.
+- **Checkout:** la aceptación del aviso se guarda con los datos del cliente (`legalVersion`); solo vale si coincide con `LEGAL_VERSION`.
+- **PWA admin:** `manifest-admin.json` con `scope: "/admin"`. El login se movió a `/admin/login` (`/login` redirige), para que la app admin no se salga de su scope. Íconos PNG: `public/icons/` para clientes (fondo blanco) y `public/icons/admin/` para el admin (fondo negro con "ADMIN"), más `badge-96.png`. El service worker está en v6.
+- **Push del cliente:** el permiso se pide al tocar "Enviar pedido". El token se liga al pedido cuando hay permiso. `/api/orders/[id]/notifications` ahora exige `trackingToken`. Antes de esto no había ni un token registrado (había 14 pedidos).
+- **Push del admin (nuevo):** el botón "Activar avisos" en el panel llama a `POST /api/admin/notification-token` (requiere `requireAdminUser`) y guarda el token en `adminNotificationTokens`. Al crear un pedido, el cliente llama a `POST /api/orders/[id]/created` con su `trackingToken`; el servidor avisa a todos los admins una sola vez (`adminNotifiedAt`). Al tocar la notificación se abre `/admin`.
+- `.env.local`: `NEXT_PUBLIC_FIREBASE_VAPID_KEY` tiene por error la API key (39 caracteres). En Vercel sí está bien (87). Solo afecta las pruebas locales.
+- Revisión general (pendientes priorizados) en `second-brain/la-barra/SISTEMAS.md`.

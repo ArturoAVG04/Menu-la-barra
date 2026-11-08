@@ -36,6 +36,7 @@ import { getBrowserPushToken } from "@/lib/pwa/notifications";
 import {
   createOrder,
   fetchTrackedOrder,
+  notifyAdminOfNewOrder,
   registerOrderNotificationToken,
   subscribeOrder
 } from "@/lib/services/menu";
@@ -221,10 +222,15 @@ export function CustomerShell() {
     try {
       const permission = await Notification.requestPermission();
       setNotificationPermission(permission);
-      if (permission === "granted" && activeOrderId && activeBranch) {
+      if (permission === "granted" && activeOrderId && activeBranch && activeOrderTrackingToken) {
         const token = await getBrowserPushToken().catch(() => null);
         if (token) {
-          await registerOrderNotificationToken(activeOrderId, activeBranch.id, token).catch(() => undefined);
+          await registerOrderNotificationToken(
+            activeOrderId,
+            activeBranch.id,
+            token,
+            activeOrderTrackingToken
+          ).catch(() => undefined);
         }
         setAddNotice("¡Notificaciones activadas!");
       } else if (permission === "denied") {
@@ -235,11 +241,11 @@ export function CustomerShell() {
     }
   }
 
-  async function linkPushTokenToOrder(orderId: string, branchId: string) {
+  async function linkPushTokenToOrder(orderId: string, branchId: string, trackingToken: string) {
     const token = await getBrowserPushToken().catch(() => null);
     if (!token) return;
 
-    await registerOrderNotificationToken(orderId, branchId, token).catch((error) => {
+    await registerOrderNotificationToken(orderId, branchId, token, trackingToken).catch((error) => {
       console.error("Error al registrar token de notificaciones:", error);
     });
   }
@@ -289,7 +295,10 @@ export function CustomerShell() {
         customerName?: string;
         customerPhone?: string;
         orderNote?: string;
+        legalVersion?: string;
       };
+      // Solo se conserva la aceptación si es de la versión vigente del aviso y los términos
+      setLegalAccepted(parsed.legalVersion === LEGAL_VERSION);
       setCustomerName(parsed.customerName ?? "");
       setCustomerPhone(parsed.customerPhone ?? "");
       setOrderNote(parsed.orderNote ?? "");
@@ -382,8 +391,9 @@ export function CustomerShell() {
 
   useEffect(() => {
     if (!activeOrderId || !activeOrderTrackingToken || !activeBranch) return;
-    void linkPushTokenToOrder(activeOrderId, activeBranch.id);
-  }, [activeBranch, activeOrderId, activeOrderTrackingToken]);
+    if (notificationPermission !== "granted") return;
+    void linkPushTokenToOrder(activeOrderId, activeBranch.id, activeOrderTrackingToken);
+  }, [activeBranch, activeOrderId, activeOrderTrackingToken, notificationPermission]);
 
   useEffect(() => {
     if (!activeOrder) return;
@@ -415,9 +425,14 @@ export function CustomerShell() {
   useEffect(() => {
     window.localStorage.setItem(
       CUSTOMER_DETAILS_STORAGE_KEY,
-      JSON.stringify({ customerName, customerPhone, orderNote })
+      JSON.stringify({
+        customerName,
+        customerPhone,
+        orderNote,
+        ...(legalAccepted ? { legalVersion: LEGAL_VERSION } : {})
+      })
     );
-  }, [customerName, customerPhone, orderNote]);
+  }, [customerName, customerPhone, orderNote, legalAccepted]);
 
   useEffect(() => {
     if (!addNotice) return;
@@ -691,6 +706,14 @@ export function CustomerShell() {
       return;
     }
 
+    // Pedir permiso de notificaciones aquí (requiere un toque del usuario) para avisarle
+    // cuando su pedido sea aceptado, rechazado o esté listo.
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      void Notification.requestPermission()
+        .then((permission) => setNotificationPermission(permission))
+        .catch(() => undefined);
+    }
+
     if (!customerName.trim() || !customerPhone.trim()) {
       setShowDetailsConfirm(true);
       return;
@@ -764,7 +787,8 @@ export function CustomerShell() {
         ACTIVE_ORDER_STORAGE_KEY,
         JSON.stringify({ id: order.id, trackingToken: order.trackingToken })
       );
-      void linkPushTokenToOrder(order.id, activeBranch.id);
+      void notifyAdminOfNewOrder(order.id, order.trackingToken);
+      void linkPushTokenToOrder(order.id, activeBranch.id, order.trackingToken);
       setTrackingOpen(false);
       setSubmitState("success");
       setSubmitMessage("Tu pedido fue enviado correctamente.");

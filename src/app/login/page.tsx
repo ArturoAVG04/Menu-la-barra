@@ -1,10 +1,6 @@
-import { AdminLogin } from "@/components/admin/AdminLogin";
+import { redirect } from "next/navigation";
 
-export default function LoginPage() {
-  return (
-    <main className="mx-auto flex min-h-screen max-w-6xl items-center px-4 py-8 md:px-6">
-      <AdminLogin />
-    </main>
-  );
+// El login vive dentro de /admin para que la app (PWA) del admin no se salga a la del menú.
+export default function LegacyLoginPage() {
+  redirect("/admin/login");
 }
-

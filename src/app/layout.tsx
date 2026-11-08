@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   description: "Descubre todos los productos que la barra tiene para ti",
   manifest: "/manifest-customer.json",
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg"
+    icon: [{ url: "/icons/icon-192.png", type: "image/png" }, { url: "/icon.svg" }],
+    apple: "/icons/icon-192.png"
   },
   openGraph: {
     title: "La Barra",
