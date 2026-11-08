@@ -36,7 +36,6 @@ import { getBrowserPushToken } from "@/lib/pwa/notifications";
 import {
   createOrder,
   fetchTrackedOrder,
-  notifyAdminOfNewOrder,
   registerOrderNotificationToken,
   subscribeOrder
 } from "@/lib/services/menu";
@@ -767,16 +766,15 @@ export function CustomerShell() {
         total: orderTotal
       });
 
-      const order = await createOrder(
-        activeBranch.id,
-        cart,
-        customerName.trim(),
-        customerPhone.trim(),
-        orderNote.trim(),
+      const order = await createOrder({
+        branchId: activeBranch.id,
+        items: cart,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        orderNote: orderNote.trim(),
         tipPercent,
-        tipAmount,
-        { version: LEGAL_VERSION, acceptedAt: Date.now() }
-      );
+        legalVersion: LEGAL_VERSION
+      });
       clearCart();
       setCartOpen(false);
       closeEditor();
@@ -787,7 +785,6 @@ export function CustomerShell() {
         ACTIVE_ORDER_STORAGE_KEY,
         JSON.stringify({ id: order.id, trackingToken: order.trackingToken })
       );
-      void notifyAdminOfNewOrder(order.id, order.trackingToken);
       void linkPushTokenToOrder(order.id, activeBranch.id, order.trackingToken);
       setTrackingOpen(false);
       setSubmitState("success");
@@ -795,7 +792,9 @@ export function CustomerShell() {
     } catch (error) {
       console.error("Error al enviar pedido:", error);
       setSubmitState("error");
-      setSubmitMessage("No pudimos enviar tu pedido. Intenta nuevamente.");
+      setSubmitMessage(
+        error instanceof Error && error.message ? error.message : "No pudimos enviar tu pedido. Intenta nuevamente."
+      );
       setSubmittedOrderWhatsappHref(null);
       setCartOpen(true);
     }

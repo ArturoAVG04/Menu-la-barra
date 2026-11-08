@@ -47,3 +47,10 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - **Push del admin (nuevo):** el botón "Activar avisos" en el panel llama a `POST /api/admin/notification-token` (requiere `requireAdminUser`) y guarda el token en `adminNotificationTokens`. Al crear un pedido, el cliente llama a `POST /api/orders/[id]/created` con su `trackingToken`; el servidor avisa a todos los admins una sola vez (`adminNotifiedAt`). Al tocar la notificación se abre `/admin`.
 - `.env.local`: `NEXT_PUBLIC_FIREBASE_VAPID_KEY` tiene por error la API key (39 caracteres). En Vercel sí está bien (87). Solo afecta las pruebas locales.
 - Revisión general (pendientes priorizados) en `second-brain/la-barra/SISTEMAS.md`.
+
+### 2026-11-07 · Precios calculados en el servidor + quitar IA + inicio de arquitectura POO — Claude
+- **Nuevo `src/domain/`** (clases puras, sin Firebase): `DomainError`, `Modifier`, `MenuProduct`, `OrderPricing` y `CustomerInfo`. Tienen pruebas en `src/domain/order/OrderPricing.test.ts` (Vitest: `npm test`).
+- **`POST /api/orders`**: `PlaceOrderService` (caso de uso con `OrderGateway` inyectado) + `FirestoreOrderGateway` (Admin SDK). Valida sucursal abierta, consentimiento, cliente y opciones, **recalcula precios con el menú real**, guarda el pedido y avisa al admin. El cliente solo manda ids, cantidades y opciones.
+- `firestore.rules`: `orders` `create` solo para admin, porque los pedidos ya no se crean desde el navegador.
+- Se quitó por completo la "IA" de descripciones (la ruta `generate-description`, el botón y el autollenado al salir del campo, que era el origen de las descripciones genéricas) y la ruta `/created` (el aviso al admin ahora va dentro de `PlaceOrderService`).
+- Sin probar en producción la escritura real de un pedido (se bloqueó escribir en la base desde aquí). Las validaciones sí se probaron en local.

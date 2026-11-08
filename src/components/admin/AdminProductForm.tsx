@@ -11,7 +11,6 @@ import {
   Palette,
   Percent,
   Plus,
-  Sparkles,
   Tag,
   Trash2,
   Edit2,
@@ -251,8 +250,6 @@ export function AdminProductForm({
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isUploadingMenuCover, setIsUploadingMenuCover] = useState(false);
   const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
-  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
-  const [lastGeneratedDescription, setLastGeneratedDescription] = useState("");
   const [imageHistory, setImageHistory] = useState<string[]>([]);
 
   const [showProductForm, setShowProductForm] = useState(false);
@@ -277,7 +274,6 @@ export function AdminProductForm({
       ...initialProduct,
       branchIds: branch ? [branch.id] : []
     });
-    setLastGeneratedDescription("");
     setCategoryName("");
     setExpandedProductId(null);
   }, [branch?.id]);
@@ -299,11 +295,6 @@ export function AdminProductForm({
   const selectedModifierIds = useMemo(
     () => new Set(product.modifiers.map((modifier) => modifier.id)),
     [product.modifiers]
-  );
-
-  const selectedCategoryName = useMemo(
-    () => categories.find((category) => category.id === product.categoryId)?.name,
-    [categories, product.categoryId]
   );
 
   const availableImageHistory = useMemo(
@@ -678,62 +669,11 @@ export function AdminProductForm({
     }
   }
 
-  async function fillGeneratedDescription() {
-    if (!product.name.trim()) return;
-    if (!currentUser || role !== "admin") {
-      onNotify("Necesitas iniciar sesión como administrador para generar la descripción.");
-      return;
-    }
-
-    setIsGeneratingDescription(true);
-
-    try {
-      const token = await currentUser.getIdToken(true);
-      const currentDescription = product.description.trim();
-      const isRegeneratingPrevious =
-        Boolean(lastGeneratedDescription) && currentDescription === lastGeneratedDescription.trim();
-
-      const response = await fetch("/api/admin/generate-description", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          productName: product.name.trim(),
-          categoryName: selectedCategoryName?.trim() || undefined,
-          notes: isRegeneratingPrevious ? undefined : currentDescription || undefined,
-          previousDescription: isRegeneratingPrevious ? currentDescription : lastGeneratedDescription || undefined
-        })
-      });
-
-      const body = (await response.json().catch(() => null)) as
-        | { description?: string; error?: string }
-        | null;
-
-      if (!response.ok || !body?.description) {
-        onNotify(body?.error || "No se pudo generar la descripción");
-        return;
-      }
-
-      const generatedDescription = body.description.trim();
-      setProduct((current) => ({ ...current, description: generatedDescription }));
-      setLastGeneratedDescription(generatedDescription);
-      onNotify("Descripción generada");
-    } catch (error) {
-      console.error("Error generando descripción:", error);
-      onNotify("No se pudo conectar con el generador de descripción.");
-    } finally {
-      setIsGeneratingDescription(false);
-    }
-  }
-
   function loadProductIntoEditor(item: Product) {
     setProduct({
       ...item,
       branchIds: item.branchIds?.length ? item.branchIds : [item.sucursalID]
     });
-    setLastGeneratedDescription("");
     setExpandedProductId(item.id);
     setShowProductForm(true);
   }
@@ -956,9 +896,6 @@ export function AdminProductForm({
                     <input
                       value={product.name}
                       onChange={(event) => setProduct((current) => ({ ...current, name: event.target.value }))}
-                      onBlur={() => {
-                        if (!product.description.trim()) fillGeneratedDescription();
-                      }}
                       className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-left outline-none"
                     />
                   </label>
@@ -970,9 +907,6 @@ export function AdminProductForm({
                       onChange={(event) =>
                         setProduct((current) => ({ ...current, categoryId: event.target.value }))
                       }
-                      onBlur={() => {
-                        if (!product.description.trim()) fillGeneratedDescription();
-                      }}
                       className="min-h-11 w-full rounded-card border border-line bg-surface px-4 py-3 text-left outline-none"
                     >
                       <option value="">Selecciona</option>
@@ -1040,22 +974,7 @@ export function AdminProductForm({
                   </label>
 
                   <label className="space-y-2 text-sm text-text lg:col-span-2">
-                    <span className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <span>Descripción</span>
-                      <button
-                        type="button"
-                        onClick={fillGeneratedDescription}
-                        disabled={!product.name.trim() || isGeneratingDescription}
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line px-4 text-xs font-semibold text-text disabled:text-muted"
-                      >
-                        <Sparkles size={14} />
-                        {isGeneratingDescription
-                          ? "Generando..."
-                          : product.description.trim()
-                          ? "Mejorar descripción"
-                          : "Crear descripción"}
-                      </button>
-                    </span>
+                    <span>Descripción</span>
                     <textarea
                       value={product.description}
                       onChange={(event) =>

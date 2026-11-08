@@ -22,7 +22,8 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow create: if true;
+      // Los pedidos se crean en el servidor (/api/orders) con precios recalculados
+      allow create: if isAdmin();
       // El cliente solo puede leer SU pedido por ID (seguimiento); listar todos requiere sesión
       allow get: if true;
       allow list: if isAdmin();

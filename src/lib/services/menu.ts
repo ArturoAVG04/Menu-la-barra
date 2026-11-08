@@ -1,12 +1,10 @@
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
   setDoc,
   updateDoc,
   where
@@ -99,72 +97,54 @@ export function subscribeOrder(orderId: string, callback: (order: Order | null) 
   );
 }
 
-function createTrackingToken() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `${crypto.randomUUID()}${crypto.randomUUID().replaceAll("-", "")}`;
-  }
 
-  return `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-}
 
-function normalizeCartItems(items: CartItem[]) {
-  return items.map((item) => ({
-    id: item.id,
-    productId: item.productId,
-    name: item.name,
-    quantity: item.quantity,
-    unitPrice: item.unitPrice,
-    ...(typeof item.basePrice === "number" ? { basePrice: item.basePrice } : {}),
-    ...(item.imageUrl ? { imageUrl: item.imageUrl } : {}),
-    ...(item.note ? { note: item.note } : {}),
-    selectedModifiers: item.selectedModifiers.map((modifier) => ({
-      modifierId: modifier.modifierId,
-      optionIds: modifier.optionIds,
-      ...(modifier.modifierName ? { modifierName: modifier.modifierName } : {}),
-      ...(modifier.optionNames?.length ? { optionNames: modifier.optionNames } : {}),
-      ...(typeof modifier.priceDelta === "number" ? { priceDelta: modifier.priceDelta } : {})
-    }))
-  }));
-}
+export type CreateOrderInput = {
+  branchId: string;
+  items: CartItem[];
+  customerName: string;
+  customerPhone: string;
+  orderNote: string;
+  tipPercent: number;
+  legalVersion: string;
+};
 
-export async function createOrder(
-  branchId: string,
-  items: CartItem[],
-  customerName: string,
-  customerPhone: string,
-  orderNote: string,
-  tipPercent: number,
-  tipAmount: number,
-  legalConsent: { version: string; acceptedAt: number }
-) {
-  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-  const total = subtotal + tipAmount;
-  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-  const trackingToken = createTrackingToken();
-
-  const reference = await addDoc(collection(db, "orders"), {
-    sucursalID: branchId,
-    items: normalizeCartItems(items),
-    itemCount,
-    subtotal,
-    tipPercent,
-    tipAmount,
-    total,
-    customerName,
-    customerPhone,
-    ...(orderNote ? { orderNote } : {}),
-    status: "new",
-    legalConsent,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    serverCreatedAt: serverTimestamp(),
-    trackingToken
+/**
+ * Envía el pedido al servidor. Solo mandamos ids, cantidades y opciones:
+ * el servidor recalcula los precios con el menú real (no se puede alterar el total).
+ */
+export async function createOrder(input: CreateOrderInput) {
+  const response = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      branchId: input.branchId,
+      items: input.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        ...(item.note ? { note: item.note } : {}),
+        selectedModifiers: item.selectedModifiers.map((modifier) => ({
+          modifierId: modifier.modifierId,
+          optionIds: modifier.optionIds
+        }))
+      })),
+      customerName: input.customerName,
+      customerPhone: input.customerPhone,
+      orderNote: input.orderNote,
+      tipPercent: input.tipPercent,
+      legalConsent: { version: input.legalVersion }
+    })
   });
 
-  return {
-    id: reference.id,
-    trackingToken
-  };
+  const body = (await response.json().catch(() => null)) as
+    | { id?: string; trackingToken?: string; total?: number; error?: string }
+    | null;
+
+  if (!response.ok || !body?.id || !body.trackingToken) {
+    throw new Error(body?.error || "No pudimos enviar tu pedido. Intenta nuevamente.");
+  }
+
+  return { id: body.id, trackingToken: body.trackingToken, total: body.total };
 }
 
 export async function updateOrderStatus(
@@ -322,15 +302,6 @@ export function subscribeBranding(
 
 export async function saveBranding(branchId: string, settings: BrandingSettings) {
   return setDoc(doc(db, "branding", branchId), settings, { merge: true });
-}
-
-/** Avisa al admin (push) que entró un pedido nuevo. No bloquea al cliente si falla. */
-export async function notifyAdminOfNewOrder(orderId: string, trackingToken: string) {
-  await fetch(`/api/orders/${orderId}/created`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ trackingToken })
-  }).catch(() => undefined);
 }
 
 /** Registra este dispositivo del admin para recibir avisos de pedidos nuevos. */
