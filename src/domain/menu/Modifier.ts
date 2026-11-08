@@ -41,6 +41,25 @@ export class Modifier {
     return this.data.options;
   }
 
+  get sortOrder() {
+    return this.data.sortOrder || 0;
+  }
+
+  /**
+   * Vista previa tolerante (para el editor mientras el cliente elige): no lanza errores,
+   * solo toma las opciones que existen y suma su precio. La validación estricta es `resolve()`.
+   */
+  preview(optionIds: readonly string[]): ResolvedModifierSelection {
+    const chosen = this.data.options.filter((option) => optionIds.includes(option.id));
+    return {
+      modifierId: this.id,
+      modifierName: this.name,
+      optionIds: chosen.map((option) => option.id),
+      optionNames: chosen.map((option) => option.name),
+      priceDelta: chosen.reduce((sum, option) => sum + (Number(option.priceDelta) || 0), 0)
+    };
+  }
+
   /** Valida los ids elegidos y devuelve la selección con nombres y precio sacados del menú (no del cliente). */
   resolve(optionIds: readonly string[]): ResolvedModifierSelection {
     const uniqueIds = [...new Set(optionIds)];

@@ -1,3 +1,4 @@
+import type { MenuProduct } from "@/domain/menu/MenuProduct";
 import type { CartItem } from "@/types";
 
 /**
@@ -13,6 +14,11 @@ export class Cart {
 
   static from(items: readonly CartItem[] | null | undefined) {
     return new Cart(Array.isArray(items) ? items : []);
+  }
+
+  /** Vuelve a armar un carrito con las líneas de un pedido anterior, con ids nuevos. */
+  static reorder(items: readonly CartItem[], newId: () => string) {
+    return new Cart(items.map((item) => ({ ...item, id: newId() })));
   }
 
   get items(): readonly CartItem[] {
@@ -66,6 +72,19 @@ export class Cart {
 
   remove(lineId: string) {
     return new Cart(this.lines.filter((line) => line.id !== lineId));
+  }
+
+  /**
+   * Primera línea a la que le falta un grupo obligatorio según el menú actual.
+   * Si el producto ya no está en el menú se ignora (el servidor lo rechazará).
+   */
+  findIncompleteLine(findProduct: (productId: string) => MenuProduct | null) {
+    return (
+      this.lines.find((line) => {
+        const product = findProduct(line.productId);
+        return product ? product.firstMissingRequired(line.selectedModifiers) !== null : false;
+      }) ?? null
+    );
   }
 
   /** Dos líneas son "la misma" si son del mismo producto con exactamente las mismas opciones. */

@@ -27,6 +27,19 @@ export class MenuProduct {
     return this.data.name;
   }
 
+  get description() {
+    return this.data.description;
+  }
+
+  get categoryId() {
+    return this.data.categoryId;
+  }
+
+  /** Datos originales (solo lectura) para los componentes que pintan el producto. */
+  toData(): Readonly<Product> {
+    return this.data;
+  }
+
   get imageUrl() {
     return this.data.imageUrl;
   }
@@ -52,6 +65,22 @@ export class MenuProduct {
 
   get modifierList(): readonly Modifier[] {
     return this.modifiers;
+  }
+
+  /** Grupos de opciones en el orden en que se muestran (por `sortOrder`). */
+  get sortedModifiers(): readonly Modifier[] {
+    return [...this.modifiers].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  /** Primer grupo obligatorio que quedó sin elegir, o null si todo está completo. */
+  firstMissingRequired(choices: readonly ModifierChoice[]): Modifier | null {
+    return (
+      this.modifiers.find(
+        (modifier) =>
+          modifier.isRequired &&
+          !(choices.find((choice) => choice.modifierId === modifier.id)?.optionIds.length ?? 0)
+      ) ?? null
+    );
   }
 
   /**
