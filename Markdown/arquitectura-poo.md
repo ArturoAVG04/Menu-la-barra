@@ -7,10 +7,12 @@
 ```
 src/
 ├── domain/            ← REGLAS DEL NEGOCIO. Clases puras de TypeScript, sin React ni Firebase.
+│   ├── admin/         ProductDraft, ModifierDraft, SortOrder (formularios del admin)
+│   ├── branding/      RgbColor
 │   ├── menu/          Modifier, MenuProduct
 │   ├── cart/          Cart (inmutable)
-│   ├── order/         OrderPricing, OrderLifecycle, CustomerInfo
-│   ├── branch/        BranchContact
+│   ├── order/         OrderPricing, OrderLifecycle, CustomerInfo, OrderBoard, OrderStatusChange
+│   ├── branch/        BranchContact, BranchFactory
 │   └── errors.ts      DomainError
 ├── infrastructure/    ← CÓMO se guardan/leen los datos (Firestore, API HTTP).
 │   ├── firebase/      FirestoreRepository (base abstracta) → BranchRepository, CatalogRepository, OrderRepository
@@ -19,7 +21,7 @@ src/
 ├── lib/server/        ← SOLO servidor: casos de uso (PlaceOrderService) y gateways con Firebase Admin.
 ├── features/          ← UI por funcionalidad (componentes pequeños + hooks que usan el dominio).
 │   ├── customer/
-│   └── admin/
+│   └── admin/         AdminShell + layout/, orders/, branches/, menu/, branding/, images/, hooks/
 └── app/               ← Rutas de Next.js (páginas y /api). Solo arman piezas, sin lógica.
 ```
 
@@ -33,7 +35,7 @@ src/
 | **Abstracción** | `OrderGateway` (interfaz): `PlaceOrderService` no sabe si los datos vienen de Firestore o de una prueba. |
 | **Herencia** | `FirestoreRepository` (clase abstracta) → `BranchRepository`, `CatalogRepository`, `OrderRepository`. |
 | **Polimorfismo** | Cualquier objeto que implemente `OrderGateway` sirve (Firestore real o uno falso en pruebas). |
-| **Inmutabilidad / objetos de valor** | `Cart` devuelve un carrito nuevo en cada operación; `CustomerInfo` es un objeto de valor validado. |
+| **Inmutabilidad / objetos de valor** | `Cart` devuelve un carrito nuevo en cada operación; `CustomerInfo` es un objeto de valor validado. En el admin, `ProductDraft` y `ModifierDraft` son borradores inmutables que se guardan tal cual en el estado de React. |
 | **Inyección de dependencias** | `new PlaceOrderService(gateway, legalVersion, now)`. |
 | **Responsabilidad única** | Cada clase hace una cosa: `OrderPricing` calcula, `OrderApiClient` habla con la API, los componentes solo pintan. |
 

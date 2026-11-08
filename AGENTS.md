@@ -67,3 +67,8 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - **Ojo:** `tailwind.config.ts` ahora escanea `src/features/**`; sin eso se pierden estilos.
 - Verificado con puppeteer: editor y carrito idénticos píxel por píxel al original. El error de hidratación #418 ya existía antes.
 
+### 2026-11-07 · Admin refactorizado a POO (rama refactor-poo) — Claude
+- `AdminShell` (1140 líneas), `AdminProductForm` (1570) y `OrderTracker` (540) se dividieron en `src/features/admin/` (layout, orders, branches, menu/{products,categories,modifiers}, branding, images, hooks). Ningún archivo pasa de ~170 líneas. `AdminLogin` y `ProtectedAdmin` también se movieron ahí.
+- Hooks con una responsabilidad: `useAdminOrders`, `useAdminPush`, `useBranchEditor`, `useBranchManager`, `useProductCatalog`, `useProductEditor`/`useCategoryEditor`/`useModifierEditor`, `useBrandingEditor`, `useImageUpload`, `useImageLibrary`, etc. Todo usa `@/infrastructure`.
+- Dominio nuevo con pruebas: `ProductDraft`, `ModifierDraft`, `SortOrder` (`domain/admin`), `OrderBoard`, `OrderStatusChange` (`domain/order`), `BranchFactory` (`domain/branch`), `RgbColor` (`domain/branding`).
+- Misma apariencia y flujos. Falta: migrar `useRealtimeMenu` (compartido con el cliente) a `@/infrastructure`.
