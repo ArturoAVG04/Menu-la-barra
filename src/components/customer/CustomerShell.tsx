@@ -32,7 +32,7 @@ import { useRealtimeMenu } from "@/lib/hooks/useRealtimeMenu";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useScrollToTopOnChange } from "@/lib/hooks/useScrollToTopOnChange";
 import { isBranchOpenAt } from "@/lib/branchHours";
-import { getBrowserPushToken } from "@/lib/pwa/notifications";
+import { getBrowserPushToken, requestPushToken } from "@/lib/pwa/notifications";
 import {
   createOrder,
   fetchTrackedOrder,
@@ -222,8 +222,12 @@ export function CustomerShell() {
       const permission = await Notification.requestPermission();
       setNotificationPermission(permission);
       if (permission === "granted" && activeOrderId && activeBranch && activeOrderTrackingToken) {
-        const token = await getBrowserPushToken().catch(() => null);
-        if (token) {
+        const { token, error } = await requestPushToken();
+        if (!token) {
+          setAddNotice(`No se pudieron activar las notificaciones: ${error}`);
+          return;
+        }
+        {
           await registerOrderNotificationToken(
             activeOrderId,
             activeBranch.id,

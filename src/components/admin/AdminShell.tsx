@@ -26,7 +26,7 @@ import { useAppState } from "@/components/providers/AppProviders";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useScrollToTopOnChange } from "@/lib/hooks/useScrollToTopOnChange";
-import { getBrowserPushToken } from "@/lib/pwa/notifications";
+import { requestPushToken } from "@/lib/pwa/notifications";
 import { MENU_URL } from "@/lib/hosts";
 import {
   deleteBranch,
@@ -123,9 +123,9 @@ export function AdminShell() {
 
   async function syncAdminPushToken(showNotice: boolean) {
     if (!currentUser) return;
-    const token = await getBrowserPushToken().catch(() => null);
+    const { token, error } = await requestPushToken();
     if (!token) {
-      if (showNotice) notify("No se pudo activar los avisos en este dispositivo.");
+      if (showNotice) notify(`No se pudo activar los avisos: ${error}`);
       return;
     }
     try {
