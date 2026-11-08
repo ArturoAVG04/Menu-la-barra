@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { subscribeCategories, subscribeProducts } from "@/lib/services/menu";
+import { catalogRepository } from "@/infrastructure";
 import type { Category, Product } from "@/types";
 
 const categoriesStorageKey = (branchId: string) => `la-barra-categories:${branchId}`;
@@ -37,11 +37,11 @@ export function useRealtimeMenu(branchId?: string) {
     setCategories(readStoredJson<Category[]>(categoriesStorageKey(branchId), []));
     setProducts(readStoredJson<Product[]>(productsStorageKey(branchId), []));
 
-    const unsubscribeCategories = subscribeCategories(branchId, (nextCategories) => {
+    const unsubscribeCategories = catalogRepository.subscribeCategories(branchId, (nextCategories) => {
       setCategories(nextCategories);
       window.localStorage.setItem(categoriesStorageKey(branchId), JSON.stringify(nextCategories));
     });
-    const unsubscribeProducts = subscribeProducts(branchId, (nextProducts) => {
+    const unsubscribeProducts = catalogRepository.subscribeProducts(branchId, (nextProducts) => {
       setProducts(nextProducts);
       window.localStorage.setItem(productsStorageKey(branchId), JSON.stringify(nextProducts));
     });

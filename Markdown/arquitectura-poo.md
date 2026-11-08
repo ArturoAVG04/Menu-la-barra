@@ -86,4 +86,4 @@ Clases nuevas del dominio: `ProductSelection` (selección inmutable del editor),
 2. Los componentes no importan `firebase/*` directamente: usan `@/infrastructure`.
 3. Componentes de máximo ~250 líneas; si crecen, se dividen. Un hook por responsabilidad (`useCart`, `useActiveOrder`…).
 4. Nombres en inglés para código, textos de la UI en español.
-5. `lib/services/menu.ts` es una fachada vieja: no usarla en código nuevo.
+5. Ya no existe `lib/services/menu.ts`: todo pasa por `@/infrastructure`.

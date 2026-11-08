@@ -80,3 +80,8 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - En el celular de Arturo, `firebase/messaging` `isSupported()` daba false ("no compatible"). Ahora se usa el **Push API estándar + librería `web-push`** en el servidor (`src/lib/server/push/WebPushSender.ts`).
 - Llaves VAPID: de `NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY`/`WEB_PUSH_PRIVATE_KEY` si existen; si no, el servidor las genera una vez y las guarda en Firestore `serverConfig/webPush` (las reglas no permiten leerlo desde el cliente). Pública en `GET /api/push/public-key`.
 - El "token" que se guarda (`orderNotificationTokens`, `adminNotificationTokens`) es ahora la suscripción Web Push serializada en JSON; los ids de documento son el hash sha256. Las firmas de `requestPushToken` y de las rutas no cambiaron.
+
+### 2026-11-07 · Integración del refactor POO — Claude
+- Se integraron en `refactor-poo` las ramas de los agentes del cliente (`src/features/customer/`, CustomerApp + 10 hooks + 21 componentes) y del admin (`src/features/admin/`, 57 archivos, 11 hooks), más `main` (Web Push).
+- Se migró `useRealtimeMenu` a `catalogRepository` y se **borró la fachada `lib/services/menu.ts`**. 56 pruebas pasan, tsc y build sin errores, y menú y login del admin renderizan sin errores de consola.
+- Pendiente antes de pasar a `main`: que Arturo pruebe el preview de Vercel (pedido completo, admin con sesión, edición de productos).
