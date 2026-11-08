@@ -205,3 +205,20 @@ export async function notifyAdminsOfNewOrder(orderId: string, trackingToken: str
 
   return { ok: true as const, sent: successCount };
 }
+
+/** Notificación de prueba para todos los admins. Devuelve cuántos dispositivos hay y a cuántos llegó. */
+export async function sendAdminTestNotification() {
+  const snapshot = await adminDb().collection(ADMIN_NOTIFICATION_COLLECTION).get();
+  const tokens = snapshot.docs.map((doc) => doc.get("token") as string).filter(Boolean);
+  if (!tokens.length) return { devices: 0, sent: 0, removed: 0 };
+
+  const { successCount, invalidTokens } = await new WebPushSender().send(tokens, {
+    title: "Prueba de aviso",
+    body: "Si ves esto, los avisos de pedidos nuevos funcionan en este dispositivo.",
+    url: "/admin"
+  });
+  await Promise.all(
+    invalidTokens.map((token) => adminDb().collection(ADMIN_NOTIFICATION_COLLECTION).doc(hashToken(token)).delete())
+  );
+  return { devices: tokens.length, sent: successCount, removed: invalidTokens.length };
+}

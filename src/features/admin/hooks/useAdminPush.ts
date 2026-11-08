@@ -53,5 +53,36 @@ export function useAdminPush(currentUser: User | null, notify: Notify) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
-  return { permission, enable };
+  /**
+   * Diagnóstico en dos pasos:
+   * 1) notificación LOCAL (no pasa por internet): si no aparece, Android/Chrome la está bloqueando;
+   * 2) notificación por el SERVIDOR (como la de un pedido real).
+   */
+  async function test() {
+    if (!currentUser) return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification("Prueba local", {
+        body: "Si ves esto, el celular sí permite notificaciones de esta app.",
+        icon: "/icons/admin/icon-192.png",
+        badge: "/icons/badge-96.png"
+      });
+    } catch (error) {
+      notify(`El celular bloqueó la notificación local: ${error instanceof Error ? error.message : error}`);
+      return;
+    }
+    await syncToken(false);
+    try {
+      const result = await orderApi.sendAdminTestPush(currentUser);
+      notify(
+        result.devices === 0
+          ? "No hay dispositivos registrados. Toca \"Activar avisos\"."
+          : `Prueba enviada a ${result.sent} de ${result.devices} dispositivo(s). Debe llegarte "Prueba de aviso" en unos segundos.`
+      );
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "No se pudo enviar la prueba");
+    }
+  }
+
+  return { permission, enable, test };
 }

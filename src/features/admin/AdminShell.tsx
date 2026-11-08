@@ -88,6 +88,7 @@ export function AdminShell() {
             title={sidebarCollapsed || mobileDrawerOpen ? "La Barra" : "Admin"}
             pushPermission={push.permission}
             onEnablePush={() => void push.enable()}
+            onTestPush={() => void push.test()}
             onOpenDrawer={() => setMobileDrawerOpen(true)}
           />
 

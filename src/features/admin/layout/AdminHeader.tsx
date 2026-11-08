@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BellRing, Menu, MoonStar, SunMedium } from "lucide-react";
+import { Bell, BellRing, Menu, MoonStar, Send, SunMedium } from "lucide-react";
 
 import { useTheme } from "@/components/providers/ThemeProvider";
 import type { PushPermission } from "@/features/admin/hooks/useAdminPush";
@@ -10,11 +10,12 @@ type AdminHeaderProps = {
   title: string;
   pushPermission: PushPermission;
   onEnablePush: () => void;
+  onTestPush: () => void;
   onOpenDrawer: () => void;
 };
 
 /** Encabezado fijo: menú móvil, botón de avisos, tema claro/oscuro y "Ver menú". */
-export function AdminHeader({ title, pushPermission, onEnablePush, onOpenDrawer }: AdminHeaderProps) {
+export function AdminHeader({ title, pushPermission, onEnablePush, onTestPush, onOpenDrawer }: AdminHeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const pushActive = pushPermission === "granted";
 
@@ -48,6 +49,17 @@ export function AdminHeader({ title, pushPermission, onEnablePush, onOpenDrawer 
           >
             {pushActive ? <BellRing size={16} /> : <Bell size={16} />}
             <span className="hidden sm:inline">{pushActive ? "Avisos activos" : "Activar avisos"}</span>
+          </button>
+        )}
+        {pushActive && (
+          <button
+            type="button"
+            onClick={onTestPush}
+            title="Mandar una notificación de prueba a este dispositivo"
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-line bg-surface px-4 py-3 text-sm font-semibold text-text"
+          >
+            <Send size={16} />
+            <span className="hidden sm:inline">Probar aviso</span>
           </button>
         )}
         <button

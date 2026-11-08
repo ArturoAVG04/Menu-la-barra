@@ -1,4 +1,4 @@
-const CACHE_NAME = "la-barra-shell-v8";
+const CACHE_NAME = "la-barra-shell-v9";
 const APP_SHELL = [
   "/",
   "/admin",
@@ -111,6 +111,8 @@ self.addEventListener("push", (event) => {
       icon: data.url.startsWith("/admin") ? "/icons/admin/icon-192.png" : "/icons/icon-192.png",
       badge: "/icons/badge-96.png",
       vibrate: [200, 100, 200],
+      // Los avisos del admin se quedan en pantalla hasta que los toques (para no perder pedidos)
+      requireInteraction: data.url.startsWith("/admin"),
       data: {
         url: data.url
       }

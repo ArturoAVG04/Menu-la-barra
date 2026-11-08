@@ -100,4 +100,12 @@ export class OrderApiClient {
       "No se pudo activar las notificaciones"
     );
   }
+
+  async sendAdminTestPush(user: User) {
+    return this.request<{ devices: number; sent: number; removed: number }>(
+      "/api/admin/push-test",
+      this.json({}, await user.getIdToken()),
+      "No se pudo enviar la prueba"
+    );
+  }
 }

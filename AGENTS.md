@@ -85,3 +85,8 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - Se integraron en `refactor-poo` las ramas de los agentes del cliente (`src/features/customer/`, CustomerApp + 10 hooks + 21 componentes) y del admin (`src/features/admin/`, 57 archivos, 11 hooks), más `main` (Web Push).
 - Se migró `useRealtimeMenu` a `catalogRepository` y se **borró la fachada `lib/services/menu.ts`**. 56 pruebas pasan, tsc y build sin errores, y menú y login del admin renderizan sin errores de consola.
 - Pendiente antes de pasar a `main`: que Arturo pruebe el preview de Vercel (pedido completo, admin con sesión, edición de productos).
+
+### 2026-11-07 · Refactor POO en producción + botón "Probar aviso" — Claude
+- `refactor-poo` se fusionó a `main` (tag de respaldo `antes-refactor-poo`). Producción verificada: menú y admin cargan sin errores.
+- Avisos del admin: con puppeteer se comprobó la cadena completa (servidor → FCM 201 → el SW del dominio admin muestra la notificación). En el celular de Arturo no aparecen, así que lo más probable es el permiso a nivel Android de la WebAPK "La Barra Admin" o la batería.
+- Nuevo `POST /api/admin/push-test` y botón **"Probar aviso"** (`useAdminPush.test`): primero lanza una notificación local (si no aparece, el sistema la bloquea) y luego una real vía servidor; dice a cuántos dispositivos llegó. En el SW, los avisos del admin usan `requireInteraction` (se quedan en pantalla). SW v9.
