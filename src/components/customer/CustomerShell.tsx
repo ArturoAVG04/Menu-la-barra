@@ -1032,24 +1032,24 @@ export function CustomerShell() {
           <button
             type="button"
             onClick={() => setTrackingOpen(true)}
-            className="flex w-full items-center justify-between rounded-full border border-brand/40 bg-panel px-5 py-3.5 text-left shadow-glow hover:border-brand md:ml-auto md:max-w-md transition active:scale-[0.98]"
+            className="flex w-full items-center justify-between rounded-full border-2 border-surface/30 bg-brand px-5 py-3.5 text-left text-surface shadow-glow md:ml-auto md:max-w-md transition hover:brightness-110 active:scale-[0.98]"
           >
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white shadow-glow">
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-brand shadow-glow">
                 <Clock3 size={20} className="animate-pulse" />
-                <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-accent ring-2 ring-panel" />
+                <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-accent ring-2 ring-brand" />
               </div>
               <div className="min-w-0">
-                <p className="font-bold text-text text-sm truncate">
+                <p className="font-bold text-surface text-sm truncate">
                   Pedido #{activeOrder.id.slice(-6).toUpperCase()}
                 </p>
-                <p className="text-xs font-semibold text-brand truncate">
+                <p className="text-xs font-semibold text-surface/80 truncate">
                   {orderStatusLabels[activeOrder.status]}
                   {activeOrderCountdownLabel ? ` · ${activeOrderCountdownLabel}` : ""}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1 text-xs font-bold text-brand shrink-0 pl-2">
+            <div className="flex items-center gap-1 text-xs font-bold text-surface shrink-0 pl-2">
               <span>Ver detalle</span>
               <ChevronRight size={16} />
             </div>

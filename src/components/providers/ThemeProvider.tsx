@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { THEME_STORAGE_KEY } from "@/lib/theme";
 
 type Theme = "light" | "dark";
 
@@ -12,22 +13,25 @@ type ThemeValue = {
 const ThemeContext = createContext<ThemeValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  // null hasta leer el tema que ya aplicó el script de <head> (evita el parpadeo blanco)
+  const [storedTheme, setTheme] = useState<Theme | null>(null);
+  const theme: Theme = storedTheme ?? "light";
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("la-barra-theme") as Theme | null;
-    if (stored) setTheme(stored);
+    setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
   }, []);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem("la-barra-theme", theme);
-  }, [theme]);
+    if (!storedTheme) return;
+    document.documentElement.dataset.theme = storedTheme;
+    document.documentElement.style.colorScheme = storedTheme;
+    window.localStorage.setItem(THEME_STORAGE_KEY, storedTheme);
+  }, [storedTheme]);
 
   const value = useMemo(
     () => ({
       theme,
-      toggleTheme: () => setTheme((current) => (current === "light" ? "dark" : "light"))
+      toggleTheme: () => setTheme((current) => ((current ?? "light") === "light" ? "dark" : "light"))
     }),
     [theme]
   );

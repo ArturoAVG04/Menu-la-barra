@@ -33,3 +33,8 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - Checkout: casilla obligatoria "Acepto el Aviso de privacidad y los Términos". El pedido guarda `legalConsent: { version, acceptedAt }`.
 - **Si cambias el aviso o los términos, sube `LEGAL_VERSION`.** Si cambia la retención (cron de 3 días en `src/lib/server/maintenance.ts`), actualiza el aviso.
 - Pendiente: que un abogado lo revise; considerar exigir `legalConsent` en `firestore.rules` (create) cuando todos los clientes tengan la versión nueva; agregar un correo de contacto.
+
+### 2026-11-07 · Modo oscuro sin parpadeo + barra del pedido con contraste — Claude
+- Parpadeo blanco: `ThemeProvider` arrancaba en "light" y además sobrescribía el tema guardado antes de leerlo. Ahora un script en `<head>` (`src/lib/theme.ts`, `THEME_INIT_SCRIPT`) aplica el tema guardado (o el del sistema si no hay uno) antes de pintar, y el provider lee ese valor.
+- Barra flotante del pedido activo: fondo `bg-brand` con texto `text-surface`, para que contraste en modo claro y oscuro.
+- `sw.js`: el caché pasa a v5 para que las PWA instaladas tomen la versión nueva.
