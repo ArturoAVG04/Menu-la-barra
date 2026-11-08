@@ -5,25 +5,33 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Solo usuarios con claim de admin (igual que AppProviders.tsx)
+    function isAdmin() {
+      return isSignedIn() &&
+        (request.auth.token.role == "admin" || request.auth.token.admin == true);
+    }
+
     match /sucursales/{branchId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isAdmin();
 
       match /{document=**} {
         allow read: if true;
-        allow write: if isSignedIn();
+        allow write: if isAdmin();
       }
     }
 
     match /orders/{orderId} {
       allow create: if true;
-      allow read: if true;
-      allow update, delete: if isSignedIn();
+      // El cliente solo puede leer SU pedido por ID (seguimiento); listar todos requiere sesión
+      allow get: if true;
+      allow list: if isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     match /branding/{document=**} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }

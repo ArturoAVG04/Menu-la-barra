@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { LEGAL_VERSION } from "@/lib/legal";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -170,6 +172,8 @@ export function CustomerShell() {
   const [search, setSearch] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [legalAccepted, setLegalAccepted] = useState(false);
+  const [legalError, setLegalError] = useState(false);
   const [tipPercent, setTipPercent] = useState(10);
   const [cartOpen, setCartOpen] = useState(false);
   const [branchPickerOpen, setBranchPickerOpen] = useState(false);
@@ -682,6 +686,11 @@ export function CustomerShell() {
   function handleSubmitClick() {
     if (!activeBranch || !activeBranchOpen || !cart.length || submitState === "sending") return;
 
+    if (!legalAccepted) {
+      setLegalError(true);
+      return;
+    }
+
     if (!customerName.trim() || !customerPhone.trim()) {
       setShowDetailsConfirm(true);
       return;
@@ -692,6 +701,11 @@ export function CustomerShell() {
 
   async function submitOrder() {
     if (!activeBranch || !activeBranchOpen || !cart.length) {
+      return;
+    }
+
+    if (!legalAccepted) {
+      setLegalError(true);
       return;
     }
 
@@ -737,7 +751,8 @@ export function CustomerShell() {
         customerPhone.trim(),
         orderNote.trim(),
         tipPercent,
-        tipAmount
+        tipAmount,
+        { version: LEGAL_VERSION, acceptedAt: Date.now() }
       );
       clearCart();
       setCartOpen(false);
@@ -1279,6 +1294,39 @@ export function CustomerShell() {
                       placeholder="Nota general para el restaurante"
                       className="min-h-11 max-h-11 w-full resize-none overflow-hidden rounded-full border border-line bg-surface px-4 py-3 text-sm text-text outline-none placeholder:text-muted"
                     />
+
+                    <label
+                      className={[
+                        "flex items-start gap-3 rounded-card border bg-surface p-4 text-sm text-text",
+                        legalError && !legalAccepted ? "border-brand" : "border-line"
+                      ].join(" ")}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={legalAccepted}
+                        onChange={(event) => {
+                          setLegalAccepted(event.target.checked);
+                          if (event.target.checked) setLegalError(false);
+                        }}
+                        className="mt-0.5 h-5 w-5 shrink-0 accent-brand"
+                      />
+                      <span className="leading-relaxed">
+                        Acepto el{" "}
+                        <Link href="/privacidad" target="_blank" className="font-semibold text-brand underline">
+                          Aviso de privacidad
+                        </Link>{" "}
+                        y los{" "}
+                        <Link href="/terminos" target="_blank" className="font-semibold text-brand underline">
+                          Términos y condiciones
+                        </Link>
+                        . Usaremos tu nombre y teléfono solo para atender tu pedido; se borran a los 3 días.
+                        {legalError && !legalAccepted && (
+                          <span className="mt-1 block font-semibold text-brand">
+                            Debes aceptar para enviar tu pedido.
+                          </span>
+                        )}
+                      </span>
+                    </label>
 
                     <div className="rounded-card border border-line bg-surface p-4">
                       <div className="flex items-center justify-between gap-3">

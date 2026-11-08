@@ -112,6 +112,7 @@ export type Order = {
   updatedAt?: number;
   createdAt: number;
   trackingToken?: string;
+  legalConsent?: { version: string; acceptedAt: number };
 };
 
 export type PublicTrackedOrder = Pick<

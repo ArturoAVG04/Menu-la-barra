@@ -134,7 +134,8 @@ export async function createOrder(
   customerPhone: string,
   orderNote: string,
   tipPercent: number,
-  tipAmount: number
+  tipAmount: number,
+  legalConsent: { version: string; acceptedAt: number }
 ) {
   const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const total = subtotal + tipAmount;
@@ -153,6 +154,7 @@ export async function createOrder(
     customerPhone,
     ...(orderNote ? { orderNote } : {}),
     status: "new",
+    legalConsent,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     serverCreatedAt: serverTimestamp(),
