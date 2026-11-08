@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 
 import { FieldValue } from "firebase-admin/firestore";
 
-import { adminDb, adminMessaging } from "@/lib/firebase/admin";
+import { adminDb } from "@/lib/firebase/admin";
+import { WebPushSender } from "@/lib/server/push/WebPushSender";
 import type { OrderStatus } from "@/types";
 
 export type OrderStatusUpdatePayload = {
@@ -19,7 +20,7 @@ type NotificationTokenRecord = {
 const ORDER_NOTIFICATION_COLLECTION = "orderNotificationTokens";
 
 function getNotificationTokenDocumentId(orderId: string, token: string) {
-  return `${orderId}_${encodeURIComponent(token)}`;
+  return `${orderId}_${createHash("sha256").update(token).digest("hex")}`;
 }
 
 function buildNotificationPayload(orderId: string, payload: OrderStatusUpdatePayload) {
@@ -102,30 +103,18 @@ export async function updateOrderAndSendNotifications(
   }
 
   try {
-    const response = await adminMessaging().sendEachForMulticast({
-      tokens,
-      notification: pushPayload.notification,
-      data: pushPayload.data
+    const { invalidTokens } = await new WebPushSender().send(tokens, {
+      title: pushPayload.notification.title,
+      body: pushPayload.notification.body,
+      url: pushPayload.data.url
     });
-
-    const invalidCodes = new Set([
-      "messaging/invalid-registration-token",
-      "messaging/registration-token-not-registered"
-    ]);
-
     await Promise.all(
-      response.responses.map((item, index) => {
-        if (item.success) return Promise.resolve();
-        if (!item.error || !invalidCodes.has(item.error.code)) return Promise.resolve();
-
-        const invalidToken = tokens[index];
-        if (!invalidToken) return Promise.resolve();
-
-        return adminDb()
+      invalidTokens.map((invalidToken) =>
+        adminDb()
           .collection(ORDER_NOTIFICATION_COLLECTION)
           .doc(getNotificationTokenDocumentId(orderId, invalidToken))
-          .delete();
-      })
+          .delete()
+      )
     );
   } catch (error) {
     console.error("Error al enviar notificaciones del pedido:", error);
@@ -135,11 +124,6 @@ export async function updateOrderAndSendNotifications(
 // ---------- Notificaciones para el admin ----------
 
 const ADMIN_NOTIFICATION_COLLECTION = "adminNotificationTokens";
-const INVALID_TOKEN_CODES = new Set([
-  "messaging/invalid-registration-token",
-  "messaging/registration-token-not-registered"
-]);
-
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -207,23 +191,17 @@ export async function notifyAdminsOfNewOrder(orderId: string, trackingToken: str
     branchName || null
   ].filter(Boolean);
 
-  const response = await adminMessaging().sendEachForMulticast({
-    tokens,
-    notification: {
-      title: `Nuevo pedido #${orderId.slice(-6).toUpperCase()}`,
-      body: parts.join(" · ")
-    },
-    data: { url: "/admin" }
+  const { successCount, invalidTokens } = await new WebPushSender().send(tokens, {
+    title: `Nuevo pedido #${orderId.slice(-6).toUpperCase()}`,
+    body: parts.join(" · "),
+    url: "/admin"
   });
 
   await Promise.all(
-    response.responses.map((item, index) => {
-      if (item.success || !item.error || !INVALID_TOKEN_CODES.has(item.error.code)) {
-        return Promise.resolve();
-      }
-      return adminDb().collection(ADMIN_NOTIFICATION_COLLECTION).doc(hashToken(tokens[index])).delete();
-    })
+    invalidTokens.map((invalidToken) =>
+      adminDb().collection(ADMIN_NOTIFICATION_COLLECTION).doc(hashToken(invalidToken)).delete()
+    )
   );
 
-  return { ok: true as const, sent: response.successCount };
+  return { ok: true as const, sent: successCount };
 }
