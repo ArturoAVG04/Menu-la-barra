@@ -54,3 +54,8 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - `firestore.rules`: `orders` `create` solo para admin, porque los pedidos ya no se crean desde el navegador.
 - Se quitó por completo la "IA" de descripciones (la ruta `generate-description`, el botón y el autollenado al salir del campo, que era el origen de las descripciones genéricas) y la ruta `/created` (el aviso al admin ahora va dentro de `PlaceOrderService`).
 - Sin probar en producción la escritura real de un pedido (se bloqueó escribir en la base desde aquí). Las validaciones sí se probaron en local.
+
+### 2026-11-07 · Dirección propia para el admin (2 PWA) — Claude
+- Android no deja instalar la PWA del admin (`/admin`) dentro del scope de la del menú (`/`) en el mismo dominio. Solución: dominio aparte **https://labarra-admin.vercel.app** en el mismo proyecto de Vercel (agregado con Vercel CLI en `~/.local/vercel-cli`, sesión de `arturoavg04`; el proyecto quedó enlazado en `.vercel/`).
+- `src/lib/hosts.ts` + `src/middleware.ts`: en el host del admin, `/` lleva a `/admin` y las rutas del cliente se mandan al menú. En el host del menú, `/admin` y `/login` se mandan al admin. `/api`, las páginas legales y los assets funcionan en ambos. Localhost y previews no redirigen.
+- "Ver menú" en el admin apunta a `MENU_URL`.

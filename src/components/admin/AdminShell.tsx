@@ -27,6 +27,7 @@ import { useTheme } from "@/components/providers/ThemeProvider";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useScrollToTopOnChange } from "@/lib/hooks/useScrollToTopOnChange";
 import { getBrowserPushToken } from "@/lib/pwa/notifications";
+import { MENU_URL } from "@/lib/hosts";
 import {
   deleteBranch,
   saveBranch,
@@ -595,7 +596,7 @@ export function AdminShell() {
                 <span className="hidden sm:inline">{theme === "dark" ? "Claro" : "Oscuro"}</span>
               </button>
               <a
-                href="/"
+                href={MENU_URL}
                 className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-line bg-surface px-4 py-3 text-sm font-semibold text-text"
               >
                 Ver menú
