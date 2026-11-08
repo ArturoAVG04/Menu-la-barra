@@ -1,5 +1,5 @@
-import { AdminShell } from "@/components/admin/AdminShell";
-import { ProtectedAdmin } from "@/components/admin/ProtectedAdmin";
+import { AdminShell } from "@/features/admin/AdminShell";
+import { ProtectedAdmin } from "@/features/admin/ProtectedAdmin";
 
 export default function AdminPage() {
   return (

@@ -59,3 +59,9 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - Android no deja instalar la PWA del admin (`/admin`) dentro del scope de la del menú (`/`) en el mismo dominio. Solución: dominio aparte **https://labarra-admin.vercel.app** en el mismo proyecto de Vercel (agregado con Vercel CLI en `~/.local/vercel-cli`, sesión de `arturoavg04`; el proyecto quedó enlazado en `.vercel/`).
 - `src/lib/hosts.ts` + `src/middleware.ts`: en el host del admin, `/` lleva a `/admin` y las rutas del cliente se mandan al menú. En el host del menú, `/admin` y `/login` se mandan al admin. `/api`, las páginas legales y los assets funcionan en ambos. Localhost y previews no redirigen.
 - "Ver menú" en el admin apunta a `MENU_URL`.
+
+### 2026-11-07 · Admin refactorizado a POO (rama refactor-poo) — Claude
+- `AdminShell` (1140 líneas), `AdminProductForm` (1570) y `OrderTracker` (540) se dividieron en `src/features/admin/` (layout, orders, branches, menu/{products,categories,modifiers}, branding, images, hooks). Ningún archivo pasa de ~170 líneas. `AdminLogin` y `ProtectedAdmin` también se movieron ahí.
+- Hooks con una responsabilidad: `useAdminOrders`, `useAdminPush`, `useBranchEditor`, `useBranchManager`, `useProductCatalog`, `useProductEditor`/`useCategoryEditor`/`useModifierEditor`, `useBrandingEditor`, `useImageUpload`, `useImageLibrary`, etc. Todo usa `@/infrastructure`.
+- Dominio nuevo con pruebas: `ProductDraft`, `ModifierDraft`, `SortOrder` (`domain/admin`), `OrderBoard`, `OrderStatusChange` (`domain/order`), `BranchFactory` (`domain/branch`), `RgbColor` (`domain/branding`).
+- Misma apariencia y flujos. Falta: migrar `useRealtimeMenu` (compartido con el cliente) a `@/infrastructure`.
