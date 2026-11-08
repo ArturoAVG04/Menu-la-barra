@@ -29,6 +29,11 @@ export class ProductSelection {
     return new ProductSelection(product, chosen, item.quantity);
   }
 
+  /** Misma selección sobre la versión más reciente del producto (el menú llega en tiempo real). */
+  withProduct(product: MenuProduct) {
+    return product === this.product ? this : new ProductSelection(product, this.chosen, this.quantity);
+  }
+
   optionIdsFor(modifierId: string): readonly string[] {
     return this.chosen[modifierId] ?? [];
   }

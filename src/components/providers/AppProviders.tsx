@@ -4,28 +4,20 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
 
 import { auth } from "@/lib/firebase/config";
-import { subscribeBranches, subscribeBranding } from "@/lib/services/menu";
-import type { Branch, BrandingSettings, CartItem, UserRole } from "@/types";
+import { BranchDirectory } from "@/domain/branch/BranchDirectory";
+import { branchRepository } from "@/infrastructure";
+import type { Branch, BrandingSettings, UserRole } from "@/types";
 
 type AppStateValue = {
   activeBranch: Branch | null;
   branches: Branch[];
   branding: BrandingSettings;
-  cart: CartItem[];
-  cartItemsCount: number;
-  cartTotal: number;
   currentUser: User | null;
   role: UserRole;
   authReady: boolean;
   setBranches: (branches: Branch[]) => void;
   setBranch: (branch: Branch | null) => void;
   setBranding: (branding: BrandingSettings) => void;
-  addToCart: (item: CartItem) => void;
-  replaceCartItem: (item: CartItem) => void;
-  updateCartItemQuantity: (itemId: string, quantity: number) => void;
-  removeFromCart: (itemId: string) => void;
-  clearCart: () => void;
-  restoreCart: (items: CartItem[]) => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -39,8 +31,6 @@ const defaultBranding: BrandingSettings = {
 
 const ACTIVE_BRANCH_STORAGE_KEY = "la-barra-branch";
 const BRANCHES_STORAGE_KEY = "la-barra-branches";
-const CART_BRANCH_STORAGE_KEY = "la-barra-cart-branch";
-const cartStorageKey = (branchId: string) => `la-barra-cart:${branchId}`;
 const brandingStorageKey = (branchId: string) => `la-barra-branding:${branchId}`;
 
 function readStoredJson<T>(key: string, fallback: T) {
@@ -51,15 +41,6 @@ function readStoredJson<T>(key: string, fallback: T) {
     return stored ? (JSON.parse(stored) as T) : fallback;
   } catch {
     return fallback;
-  }
-}
-
-function readStoredCart(branchId: string) {
-  try {
-    const stored = window.localStorage.getItem(cartStorageKey(branchId));
-    return stored ? (JSON.parse(stored) as CartItem[]) : [];
-  } catch {
-    return [];
   }
 }
 
@@ -79,26 +60,13 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         }
       : defaultBranding
   );
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [cartBranchId, setCartBranchId] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : window.localStorage.getItem(CART_BRANCH_STORAGE_KEY)
-  );
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>("guest");
   const [authReady, setAuthReady] = useState(false);
-  const [cartLoaded, setCartLoaded] = useState(false);
-
-  useEffect(() => {
-    if (activeBranch) {
-      setCart(readStoredCart(activeBranch.id));
-      setCartBranchId(activeBranch.id);
-      setCartLoaded(true);
-    }
-  }, []);
 
   useEffect(
     () =>
-      subscribeBranches((nextBranches) => {
+      branchRepository.subscribeAll((nextBranches) => {
         setBranches(nextBranches);
         window.localStorage.setItem(BRANCHES_STORAGE_KEY, JSON.stringify(nextBranches));
       }),
@@ -132,13 +100,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!activeBranch) return;
+    // El carrito de cada sucursal lo maneja `useCart` (src/features/customer/hooks).
     window.localStorage.setItem(ACTIVE_BRANCH_STORAGE_KEY, JSON.stringify(activeBranch));
-
-    // Solo cargamos del disco si la sucursal activa cambió realmente
-    const storedCart = readStoredCart(activeBranch.id);
-    setCart(storedCart);
-    setCartBranchId(activeBranch.id);
-    setCartLoaded(true);
   }, [activeBranch?.id]);
 
   useEffect(() => {
@@ -152,7 +115,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       ...readStoredJson<Partial<BrandingSettings>>(brandingStorageKey(activeBranch.id), {})
     });
 
-    return subscribeBranding(activeBranch.id, (settings) => {
+    return branchRepository.subscribeBranding(activeBranch.id, (settings) => {
       const nextBranding = settings ? { ...defaultBranding, ...settings } : defaultBranding;
       setBranding(nextBranding);
       window.localStorage.setItem(brandingStorageKey(activeBranch.id), JSON.stringify(nextBranding));
@@ -171,15 +134,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   }, [activeBranch, branches]);
 
   useEffect(() => {
-    if (!cartBranchId || !cartLoaded) return;
-    window.localStorage.setItem(CART_BRANCH_STORAGE_KEY, cartBranchId);
-    window.localStorage.setItem(cartStorageKey(cartBranchId), JSON.stringify(cart));
-  }, [cart, cartBranchId, cartLoaded]);
-
-  useEffect(() => {
     if (activeBranch || !branches.length) return;
-    const preferredBranch = branches.find((branch) => branch.isPrimary) ?? branches[0];
-    setActiveBranch(preferredBranch);
+    setActiveBranch(BranchDirectory.preferred(branches));
   }, [activeBranch, branches]);
 
   useEffect(() => {
@@ -202,87 +158,17 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     );
   }, [branding]);
 
-  useEffect(() => {
-    if (cart.length > 0 && activeBranch && cartBranchId && cartBranchId !== activeBranch.id) {
-      setCart([]);
-    }
-  }, [activeBranch?.id, cart.length, cartBranchId]);
-
-  const cartItemsCount = useMemo(
-    () => cart.reduce((sum, item) => sum + item.quantity, 0),
-    [cart]
-  );
-
-  const cartTotal = useMemo(
-    () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
-    [cart]
-  );
-
   const value = useMemo<AppStateValue>(
     () => ({
       activeBranch,
       branches,
       branding,
-      cart,
-      cartItemsCount,
-      cartTotal,
       currentUser,
       role,
       authReady,
       setBranches,
       setBranch: (branch) => setActiveBranch(branch),
       setBranding,
-      addToCart: (item) => {
-        if (!activeBranch) return;
-
-        setCartBranchId(activeBranch.id);
-        setCart((current) => {
-          const existingItemIndex = current.findIndex((entry) => {
-            if (entry.productId !== item.productId) return false;
-            if (entry.selectedModifiers.length !== item.selectedModifiers.length) return false;
-            
-            return entry.selectedModifiers.every((mod) => {
-              const otherMod = item.selectedModifiers.find(m => m.modifierId === mod.modifierId);
-              if (!otherMod) return false;
-              if (mod.optionIds.length !== otherMod.optionIds.length) return false;
-              return mod.optionIds.every(id => otherMod.optionIds.includes(id));
-            });
-          });
-
-          if (existingItemIndex === -1) return [...current, item];
-
-          return current.map((entry, index) =>
-            index === existingItemIndex
-              ? { ...entry, quantity: entry.quantity + item.quantity }
-              : entry
-          );
-        });
-      },
-      replaceCartItem: (item) => {
-        setCart((current) =>
-          current.map((entry) => (entry.id === item.id ? item : entry))
-        );
-      },
-      updateCartItemQuantity: (itemId, quantity) => {
-        setCart((current) => {
-          if (quantity <= 0) {
-            return current.filter((entry) => entry.id !== itemId);
-          }
-
-          return current.map((entry) =>
-            entry.id === itemId ? { ...entry, quantity } : entry
-          );
-        });
-      },
-      removeFromCart: (itemId) => {
-        setCart((current) => current.filter((entry) => entry.id !== itemId));
-      },
-      clearCart: () => setCart([]),
-      restoreCart: (items) => {
-        if (!activeBranch) return;
-        setCartBranchId(activeBranch.id);
-        setCart(items);
-      },
       login: async (email, password) => {
         const credential = await signInWithEmailAndPassword(auth, email, password);
         await credential.user.getIdToken(true);
@@ -291,7 +177,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         await signOut(auth);
       }
     }),
-    [activeBranch, authReady, branches, branding, cart, cartItemsCount, cartTotal, currentUser, role]
+    [activeBranch, authReady, branches, branding, currentUser, role]
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
