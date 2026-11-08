@@ -59,3 +59,7 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - Android no deja instalar la PWA del admin (`/admin`) dentro del scope de la del menú (`/`) en el mismo dominio. Solución: dominio aparte **https://labarra-admin.vercel.app** en el mismo proyecto de Vercel (agregado con Vercel CLI en `~/.local/vercel-cli`, sesión de `arturoavg04`; el proyecto quedó enlazado en `.vercel/`).
 - `src/lib/hosts.ts` + `src/middleware.ts`: en el host del admin, `/` lleva a `/admin` y las rutas del cliente se mandan al menú. En el host del menú, `/admin` y `/login` se mandan al admin. `/api`, las páginas legales y los assets funcionan en ambos. Localhost y previews no redirigen.
 - "Ver menú" en el admin apunta a `MENU_URL`.
+
+### 2026-11-07 · Inicio del refactor POO (rama `refactor-poo`) — Claude
+- Rama `refactor-poo` (push a origin): `src/domain/` (Cart, OrderLifecycle, BranchContact + los anteriores), `src/infrastructure/` (FirestoreRepository abstracta → BranchRepository, CatalogRepository, OrderRepository; OrderApiClient; instancias en `index.ts`). `lib/services/menu.ts` queda como fachada temporal. La guía está en `Markdown/arquitectura-poo.md`.
+- Dos agentes en worktrees separados están dividiendo los componentes del cliente y del admin en `src/features/{customer,admin}/`. Después se integran en `refactor-poo` y se revisan con un preview de Vercel antes de pasar a `main`.
