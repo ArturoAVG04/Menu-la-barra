@@ -6,7 +6,7 @@
 ## Regla obligatoria
 Al terminar cualquier cambio o revisión aquí:
 1. Agrega una entrada en la sección **Registro** de este archivo.
-2. Agrega un resumen en `/home/arturo/second-brain/AGENTS.md` (sección 8).
+2. Agrega un resumen al final de `/home/arturo/second-brain/log.md`.
 3. Si tienes memoria propia, guárdalo ahí también.
 Formato: `### AAAA-MM-DD · Qué se hizo — Agente` + qué se hizo, qué se aprendió y qué falta.
 
@@ -16,11 +16,11 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 
 ## Documentación existente
 - `Markdown/arquitectura.md`, `Markdown/decisiones.md`, `Markdown/prelaunch-backlog.md`, `README.md`
-- Revisión completa: `/home/arturo/second-brain/la-barra/SISTEMAS.md`
+- Revisión completa: `/home/arturo/second-brain/04-software/SISTEMAS.md`
 
 ## Registro
 ### 2026-11-07 · Revisión + arreglo de reglas de Firestore — Claude
-- Revisión de solo lectura (estado, seguridad, Admin SDK). Detalle en `second-brain/la-barra/SISTEMAS.md`.
+- Revisión de solo lectura (estado, seguridad, Admin SDK). Detalle en `second-brain/04-software/SISTEMAS.md`.
 - `firestore.rules`: se agregó `isAdmin()` (claim `role=="admin"` o `admin==true`, igual que `AppProviders.tsx`). Escritura y `list` de `orders` solo para admin; `get` de un pedido es público por su ID (para el seguimiento del cliente). Sin commit.
 - Pendiente: desplegar las reglas; validar campos en `create` de `orders`; arreglar `FIREBASE_ADMIN_PRIVATE_KEY` en Vercel (JSON en base64); reescribir las descripciones genéricas de productos.
 
@@ -46,7 +46,7 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - **Push del cliente:** el permiso se pide al tocar "Enviar pedido". El token se liga al pedido cuando hay permiso. `/api/orders/[id]/notifications` ahora exige `trackingToken`. Antes de esto no había ni un token registrado (había 14 pedidos).
 - **Push del admin (nuevo):** el botón "Activar avisos" en el panel llama a `POST /api/admin/notification-token` (requiere `requireAdminUser`) y guarda el token en `adminNotificationTokens`. Al crear un pedido, el cliente llama a `POST /api/orders/[id]/created` con su `trackingToken`; el servidor avisa a todos los admins una sola vez (`adminNotifiedAt`). Al tocar la notificación se abre `/admin`.
 - `.env.local`: `NEXT_PUBLIC_FIREBASE_VAPID_KEY` tiene por error la API key (39 caracteres). En Vercel sí está bien (87). Solo afecta las pruebas locales.
-- Revisión general (pendientes priorizados) en `second-brain/la-barra/SISTEMAS.md`.
+- Revisión general (pendientes priorizados) en `second-brain/04-software/SISTEMAS.md`.
 
 ### 2026-11-07 · Precios calculados en el servidor + quitar IA + inicio de arquitectura POO — Claude
 - **Nuevo `src/domain/`** (clases puras, sin Firebase): `DomainError`, `Modifier`, `MenuProduct`, `OrderPricing` y `CustomerInfo`. Tienen pruebas en `src/domain/order/OrderPricing.test.ts` (Vitest: `npm test`).
