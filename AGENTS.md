@@ -90,3 +90,8 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - `refactor-poo` se fusionó a `main` (tag de respaldo `antes-refactor-poo`). Producción verificada: menú y admin cargan sin errores.
 - Avisos del admin: con puppeteer se comprobó la cadena completa (servidor → FCM 201 → el SW del dominio admin muestra la notificación). En el celular de Arturo no aparecen, así que lo más probable es el permiso a nivel Android de la WebAPK "La Barra Admin" o la batería.
 - Nuevo `POST /api/admin/push-test` y botón **"Probar aviso"** (`useAdminPush.test`): primero lanza una notificación local (si no aparece, el sistema la bloquea) y luego una real vía servidor; dice a cuántos dispositivos llegó. En el SW, los avisos del admin usan `requireInteraction` (se quedan en pantalla). SW v9.
+
+### 2026-11-07 · Avisos del admin funcionando + campanita — Claude
+- En el celular de Arturo el problema era Chrome (permisos y batería); ya llegan los avisos del admin.
+- "Probar aviso" ya no lanza la notificación local: solo manda una por el servidor, para no duplicar.
+- `useNewOrderSound`: el beep anterior era un WAV vacío (no sonaba). Ahora es una campanita de 3 notas con Web Audio + vibración, mientras el panel está abierto. El sonido de las notificaciones del sistema no se puede cambiar desde la web: se cambia en los ajustes de Android de la app/Chrome.
