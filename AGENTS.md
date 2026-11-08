@@ -59,3 +59,11 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - Android no deja instalar la PWA del admin (`/admin`) dentro del scope de la del menú (`/`) en el mismo dominio. Solución: dominio aparte **https://labarra-admin.vercel.app** en el mismo proyecto de Vercel (agregado con Vercel CLI en `~/.local/vercel-cli`, sesión de `arturoavg04`; el proyecto quedó enlazado en `.vercel/`).
 - `src/lib/hosts.ts` + `src/middleware.ts`: en el host del admin, `/` lleva a `/admin` y las rutas del cliente se mandan al menú. En el host del menú, `/admin` y `/login` se mandan al admin. `/api`, las páginas legales y los assets funcionan en ambos. Localhost y previews no redirigen.
 - "Ver menú" en el admin apunta a `MENU_URL`.
+
+### 2026-11-07 · Cliente refactorizado a POO (rama de worktree sobre `refactor-poo`) — Claude
+- `CustomerShell.tsx` (1860 líneas) se dividió en `src/features/customer/`: `CustomerApp.tsx` (contenedor), 10 hooks y 21 componentes pequeños. `src/app/page.tsx` usa `CustomerApp`. Se borró `BranchSelector.tsx` (no se usaba).
+- El carrito salió de `AppProviders` (ahora `useCart` con la clase `Cart`); el contexto del admin no cambió.
+- Dominio nuevo con pruebas: `ProductSelection`, `MenuCatalog`, `BranchDirectory`, métodos de cliente en `OrderLifecycle`. Infraestructura: `LocalJsonStore<T>`.
+- **Ojo:** `tailwind.config.ts` ahora escanea `src/features/**`; sin eso se pierden estilos.
+- Verificado con puppeteer: editor y carrito idénticos píxel por píxel al original. El error de hidratación #418 ya existía antes.
+

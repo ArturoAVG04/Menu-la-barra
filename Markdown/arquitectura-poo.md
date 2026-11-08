@@ -62,6 +62,23 @@ classDiagram
   FirestoreRepository <|-- OrderRepository
 ```
 
+## Cliente (`src/features/customer/`)
+
+`CustomerApp.tsx` es el contenedor: arma hooks y componentes, sin calcular nada.
+
+| Hook | Responsabilidad | Usa |
+|---|---|---|
+| `useCart` | Carrito de la sucursal activa, guardado en el navegador | `Cart`, `LocalJsonStore` |
+| `useProductEditor` | Opciones y cantidad del producto que se edita | `ProductSelection` → `MenuProduct` → `Modifier` |
+| `useActiveOrder` | Seguimiento del pedido (API + Firestore en tiempo real) | `OrderLifecycle`, `orderApi`, `orderRepository` |
+| `useCustomerDetails` | Nombre, teléfono, nota y aceptación legal (`LEGAL_VERSION`) | `LocalJsonStore` |
+| `usePushNotifications` | Permiso y token push del pedido | `requestPushToken`, `orderApi` |
+| `useOrderSubmission` | Validar y enviar el pedido | `Cart`, `BranchContact`, `orderApi` |
+| `useMenuCatalog` | Menú en tiempo real con copia local | `MenuCatalog`, `catalogRepository` |
+| `useBranchLinks` | WhatsApp, Instagram y tickets | `BranchContact` |
+
+Clases nuevas del dominio: `ProductSelection` (selección inmutable del editor), `MenuCatalog` (búsqueda y secciones), `BranchDirectory` (orden de sucursales) y métodos de cliente en `OrderLifecycle` (`countdownLabel`, `hasReachedStep`, `blocksNewItems`, `suggestsWhatsappTicket`). En infraestructura, `LocalJsonStore<T>` (clase genérica) encapsula el `localStorage`.
+
 ## Reglas del proyecto
 1. La lógica de negocio va en `domain/` con pruebas (`npm test`). Los componentes no calculan precios ni estados.
 2. Los componentes no importan `firebase/*` directamente: usan `@/infrastructure`.
