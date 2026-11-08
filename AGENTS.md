@@ -72,3 +72,11 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - Hooks con una responsabilidad: `useAdminOrders`, `useAdminPush`, `useBranchEditor`, `useBranchManager`, `useProductCatalog`, `useProductEditor`/`useCategoryEditor`/`useModifierEditor`, `useBrandingEditor`, `useImageUpload`, `useImageLibrary`, etc. Todo usa `@/infrastructure`.
 - Dominio nuevo con pruebas: `ProductDraft`, `ModifierDraft`, `SortOrder` (`domain/admin`), `OrderBoard`, `OrderStatusChange` (`domain/order`), `BranchFactory` (`domain/branch`), `RgbColor` (`domain/branding`).
 - Misma apariencia y flujos. Falta: migrar `useRealtimeMenu` (compartido con el cliente) a `@/infrastructure`.
+### 2026-11-07 · Inicio del refactor POO (rama `refactor-poo`) — Claude
+- Rama `refactor-poo` (push a origin): `src/domain/` (Cart, OrderLifecycle, BranchContact + los anteriores), `src/infrastructure/` (FirestoreRepository abstracta → BranchRepository, CatalogRepository, OrderRepository; OrderApiClient; instancias en `index.ts`). `lib/services/menu.ts` queda como fachada temporal. La guía está en `Markdown/arquitectura-poo.md`.
+- Dos agentes en worktrees separados están dividiendo los componentes del cliente y del admin en `src/features/{customer,admin}/`. Después se integran en `refactor-poo` y se revisan con un preview de Vercel antes de pasar a `main`.
+
+### 2026-11-07 · Notificaciones con Web Push estándar (sin SDK de Firebase en el navegador) — Claude
+- En el celular de Arturo, `firebase/messaging` `isSupported()` daba false ("no compatible"). Ahora se usa el **Push API estándar + librería `web-push`** en el servidor (`src/lib/server/push/WebPushSender.ts`).
+- Llaves VAPID: de `NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY`/`WEB_PUSH_PRIVATE_KEY` si existen; si no, el servidor las genera una vez y las guarda en Firestore `serverConfig/webPush` (las reglas no permiten leerlo desde el cliente). Pública en `GET /api/push/public-key`.
+- El "token" que se guarda (`orderNotificationTokens`, `adminNotificationTokens`) es ahora la suscripción Web Push serializada en JSON; los ids de documento son el hash sha256. Las firmas de `requestPushToken` y de las rutas no cambiaron.
