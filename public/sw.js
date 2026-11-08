@@ -1,4 +1,4 @@
-const CACHE_NAME = "la-barra-shell-v7";
+const CACHE_NAME = "la-barra-shell-v8";
 const APP_SHELL = [
   "/",
   "/admin",
