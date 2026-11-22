@@ -47,7 +47,7 @@ export function BranchHero({ branch, logoUrl, isOpen, search, onSearchChange, on
                 )}
 
                 <div>
-                  <h1 className="mt-1 text-2xl font-semibold text-white md:text-3xl">{branch.name}</h1>
+                  <h2 className="mt-1 text-2xl font-semibold text-white md:text-3xl">{branch.name}</h2>
                   {branch.address && <p className="mt-2 max-w-2xl text-sm text-white/80">{branch.address}</p>}
                 </div>
               </div>

@@ -19,6 +19,12 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - Revisión completa: `/home/arturo/second-brain/04-software/SISTEMAS.md`
 
 ## Registro
+### 2026-11-22 · SEO para Google — Claude
+- `page.tsx` (ISR `revalidate = 3600`) ahora pinta en el servidor `MenuIntro`: un solo `<h1>`, intro (qué es La Barra, dónde, horario) y lista visible de categorías y productos con precio de la sucursal principal (`src/lib/server/publicMenu.ts`, firebase-admin; si falla devuelve vacío). El h1 de `BranchHero` pasó a `h2` para no duplicar. JSON-LD `Restaurant` en `src/lib/seo.ts` (sin calle; solo Guanajuato/Gto./MX; Instagram en `sameAs`, falta URL de Facebook).
+- Metadata con plantilla y canonical por página (layout ya no fija canonical). `opengraph-image.tsx` y `twitter-image.tsx` (PNG 1200x630 vía `src/lib/ogImage.tsx`), `favicon.ico`, `not-found.tsx` en español, `robots.ts`, `sitemap.ts` (/, /privacidad, /terminos).
+- `middleware.ts`: robots.txt/sitemap/favicon/og pasan en ambos hosts; admin y emprende-hoy responden `X-Robots-Tag: noindex` y su robots.txt es `Disallow: /`. `/admin` tiene `robots: noindex`.
+- Pendiente (Arturo): agregar la propiedad en Search Console y enviar el sitemap; poner la URL de Facebook en `sameAs`; enlazar el sitio desde el Perfil de Negocio.
+
 ### 2026-11-21 · Cliente: arreglos de bugs, privacidad y abuso de pedidos — Claude (worktree)
 - Horario nocturno (`branchHours`): sábado 01:00 ya cuenta el turno del viernes aunque el sábado también tenga turno. Pruebas en `src/lib/branchHours.test.ts`.
 - Privacidad: el cliente ya no lee `orders/{id}` en Firestore; consulta `/api/orders/[id]/track` cada 10 s (pausa con la pestaña oculta). La ruta ya no devuelve teléfono ni token. `firestore.rules`: `get` de `orders` solo admin (**falta desplegar las reglas**).

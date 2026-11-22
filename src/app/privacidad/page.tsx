@@ -4,7 +4,8 @@ import { LegalPage } from "@/components/legal/LegalPage";
 import { LEGAL_OWNER, LEGAL_VERSION } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Aviso de privacidad | La Barra",
+  title: "Aviso de privacidad",
+  alternates: { canonical: "/privacidad" },
   description: "Cómo La Barra trata los datos personales de sus clientes."
 };
 

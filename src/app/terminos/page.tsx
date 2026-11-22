@@ -4,7 +4,8 @@ import { LegalPage } from "@/components/legal/LegalPage";
 import { LEGAL_OWNER } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Términos y condiciones | La Barra",
+  title: "Términos y condiciones",
+  alternates: { canonical: "/terminos" },
   description: "Condiciones para hacer pedidos en el menú digital de La Barra."
 };
 

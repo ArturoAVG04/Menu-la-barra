@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "La Barra Admin",
   description: "Panel administrativo de La Barra",
+  robots: { index: false, follow: false },
   manifest: "/manifest-admin.json",
   icons: {
     icon: "/icons/admin/icon-192.png",
