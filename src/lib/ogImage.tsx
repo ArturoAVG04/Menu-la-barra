@@ -19,7 +19,7 @@ export function renderOgImage() {
         }}
       >
         <div style={{ fontSize: 150, fontWeight: 800, letterSpacing: -4 }}>La Barra</div>
-        <div style={{ fontSize: 54, marginTop: 16 }}>Hamburguesas, alitas y burritos</div>
+        <div style={{ fontSize: 54, marginTop: 16 }}>Hamburguesas, alitas y snacks</div>
         <div style={{ fontSize: 38, marginTop: 24, color: "#79c497" }}>Guanajuato · Pide por WhatsApp</div>
       </div>
     ),

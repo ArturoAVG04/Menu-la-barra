@@ -2,11 +2,12 @@
 import { MENU_URL } from "@/lib/hosts";
 
 export const SITE_NAME = "La Barra";
-export const SITE_TITLE = "La Barra · Hamburguesas, alitas y burritos en Guanajuato";
+export const SITE_TITLE = "La Barra · Hamburguesas, alitas y snacks en Guanajuato";
 export const SITE_DESCRIPTION =
-  "Hamburguesas, alitas, boneless, burritos y papas en Guanajuato capital. Universidad entre semana, La Presa los fines de semana. Pide por WhatsApp o en línea.";
+  "Hamburguesas, alitas, boneless, papas y snacks en Guanajuato capital. Universidad entre semana, La Presa los fines de semana. Pide por WhatsApp o en línea.";
 export const SITE_PHONE = "+52 473 165 0241";
 export const INSTAGRAM_URL = "https://www.instagram.com/labarraguanajuato";
+export const FACEBOOK_URL = "https://www.facebook.com/la.barra.guanajuato";
 
 export function buildRestaurantJsonLd() {
   return {
@@ -20,7 +21,7 @@ export function buildRestaurantJsonLd() {
     image: `${MENU_URL}/opengraph-image`,
     logo: `${MENU_URL}/icons/icon-512.png`,
     telephone: SITE_PHONE,
-    servesCuisine: ["Hamburguesas", "Alitas", "Boneless", "Burritos", "Papas"],
+    servesCuisine: ["Hamburguesas", "Alitas", "Boneless", "Papas", "Snacks"],
     priceRange: "$",
     acceptsReservations: false,
     areaServed: "Guanajuato, Guanajuato, MX",
@@ -30,7 +31,7 @@ export function buildRestaurantJsonLd() {
       addressRegion: "Gto.",
       addressCountry: "MX"
     },
-    sameAs: [INSTAGRAM_URL],
+    sameAs: [INSTAGRAM_URL, FACEBOOK_URL],
     openingHoursSpecification: [
       {
         "@type": "OpeningHoursSpecification",

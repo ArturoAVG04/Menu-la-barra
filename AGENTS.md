@@ -130,3 +130,6 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - `src/app/ir/[slug]/route.ts`: `/ir/<slug>` redirige (307) a la URL del campo `url` de Firestore `enlaces/<slug>` (solo https; si no, al menú). Las reglas no abren `enlaces` (solo lo lee el servidor). Se crea o edita desde la consola de Firebase.
 - `enlaces/video` creado para el QR del cartel (por ahora apunta al menú). Probado en producción: al cambiar la URL cambia el destino.
 - Dirección extra **https://emprende-hoy.vercel.app** (proyecto escolar de Comunicación de negocios): el middleware reescribe `/` a `/ir/emprende` y `/<x>` a `/ir/<x>`. Se agregó con `vercel domains add <dominio> menulabarra` (sin el nombre del proyecto da `invalid_domain`). Si el enlace no existe, el fallback va a `MENU_URL` y no a la misma dirección (evita un ciclo).
+
+### 2026-11-22 · SEO: "snacks" en lugar de "burritos" + Facebook — Claude
+- Los burritos solo se venden en la Uni: Arturo no quiere que se anuncien en Google. Los textos SEO, el JSON-LD y la imagen OG ahora dicen "hamburguesas, alitas y snacks". Se agregó `FACEBOOK_URL` (facebook.com/la.barra.guanajuato) a `sameAs`.

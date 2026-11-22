@@ -7,10 +7,10 @@ export function MenuIntro({ sections }: { sections: PublicMenuSection[] }) {
   return (
     <section className="mt-6 rounded-shell border border-line bg-panel p-5 text-text md:p-6" aria-labelledby="la-barra-titulo">
       <h1 id="la-barra-titulo" className="text-xl font-semibold md:text-2xl">
-        La Barra: hamburguesas, alitas y burritos en Guanajuato
+        La Barra: hamburguesas, alitas y snacks en Guanajuato
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-muted">
-        Hamburguesas, alitas, boneless, burritos y papas en Guanajuato capital. Estamos en la Universidad entre semana
+        Hamburguesas, alitas, boneless, papas y snacks en Guanajuato capital. Estamos en la Universidad entre semana
         y en la combi de La Presa los fines de semana. Pide por WhatsApp o desde este menú.
       </p>
       <p className="mt-2 text-sm text-muted">Lunes a viernes 3:00 a 9:00 pm · sábado 1:00 a 9:00 pm · domingo 1:00 a 7:00 pm.</p>
