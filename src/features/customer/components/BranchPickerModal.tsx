@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 
 import { BranchDirectory } from "@/domain/branch/BranchDirectory";
+import { useEscapeKey } from "@/features/customer/hooks/useEscapeKey";
 import { isBranchOpenAt } from "@/lib/branchHours";
 import type { Branch } from "@/types";
 
@@ -14,14 +15,16 @@ type BranchPickerModalProps = {
 
 /** Selector de sucursal (cada una con su portada y si está abierta). */
 export function BranchPickerModal({ branches, activeBranchId, now, onSelect, onClose }: BranchPickerModalProps) {
+  useEscapeKey(onClose);
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 p-4 backdrop-blur-sm">
+    <div role="dialog" aria-modal="true" aria-labelledby="branch-picker-title" className="fixed inset-0 z-50 bg-black/50 p-4 backdrop-blur-sm">
       <div className="mx-auto flex h-full max-w-3xl items-end md:items-center">
         <div className="flex max-h-[88vh] w-full flex-col overflow-hidden rounded-shell border border-line bg-panel p-5 shadow-glow md:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm uppercase tracking-[0.25em] text-brand">Sucursales</p>
-              <h2 className="mt-2 text-2xl font-semibold text-text">Selecciona tu sucursal</h2>
+              <h2 id="branch-picker-title" className="mt-2 text-2xl font-semibold text-text">Selecciona tu sucursal</h2>
               <p className="mt-2 text-center text-sm text-muted md:text-left">
                 Tu carrito se mantiene separado por sucursal para que no se mezclen pedidos.
               </p>

@@ -32,7 +32,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
     trackingToken?: string;
     items?: unknown;
     customerName?: string;
-    customerPhone?: string;
     orderNote?: string;
     subtotal?: number;
     tipPercent?: number;
@@ -49,11 +48,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 });
   }
 
+  // Solo campos públicos: sin teléfono ni token.
   return NextResponse.json({
     id: snapshot.id,
     items: order.items ?? [],
     customerName: order.customerName ?? "",
-    customerPhone: order.customerPhone ?? "",
     orderNote: order.orderNote ?? "",
     subtotal: order.subtotal ?? 0,
     tipPercent: order.tipPercent ?? 0,
@@ -64,5 +63,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
     estimatedReadyAt: order.estimatedReadyAt,
     statusMessage: order.statusMessage ?? "",
     createdAt: order.createdAt ?? Date.now()
-  });
+  }, { headers: { "Cache-Control": "no-store" } });
 }

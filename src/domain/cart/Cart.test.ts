@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { Cart } from "@/domain/cart/Cart";
+import { Cart, MAX_LINE_QUANTITY } from "@/domain/cart/Cart";
+import { MenuProduct } from "@/domain/menu/MenuProduct";
 import { OrderLifecycle } from "@/domain/order/OrderStatus";
 import type { CartItem } from "@/types";
 
@@ -32,6 +33,31 @@ describe("Cart", () => {
     const cart = Cart.from([line("1", "papas", [], 2)]);
     expect(cart.tipFor(10)).toBe(10);
     expect(cart.totalWithTip(10)).toBe(110);
+  });
+});
+
+describe("Cart: límites y menú actual", () => {
+  const product = (price: number, available = true) =>
+    MenuProduct.from({ id: "papas", sucursalID: "b", categoryId: "c", name: "papas", description: "", price, available, modifiers: [] });
+
+  it("no pasa de 50 piezas por línea", () => {
+    const cart = Cart.empty().add(line("1", "papas", [], 40)).add(line("2", "papas", [], 20));
+    expect(cart.items[0].quantity).toBe(MAX_LINE_QUANTITY);
+    expect(cart.setQuantity("1", 99).items[0].quantity).toBe(50);
+  });
+
+  it("descarta líneas guardadas inválidas", () => {
+    const cart = Cart.from([line("1", "papas"), { id: "2", productId: "x" }, null, "basura"]);
+    expect(cart.items).toHaveLength(1);
+    expect(Cart.from({ no: "arreglo" }).isEmpty).toBe(true);
+  });
+
+  it("actualiza precios con el menú y detecta productos no disponibles", () => {
+    const cart = Cart.from([line("1", "papas"), line("2", "borrado")]);
+    const find = (id: string) => (id === "papas" ? product(65) : null);
+    expect(cart.repriced(find).items[0].unitPrice).toBe(65);
+    expect(cart.unavailableLineIds(find)).toEqual(["2"]);
+    expect(cart.unavailableLineIds(() => product(65, false))).toEqual(["1", "2"]);
   });
 });
 

@@ -1,32 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useAppState } from "@/components/providers/AppProviders";
-import { Cart } from "@/domain/cart/Cart";
 import { OrderLifecycle } from "@/domain/order/OrderStatus";
+import { CustomerOverlays } from "@/features/customer/CustomerOverlays";
 import { BranchHero } from "@/features/customer/components/BranchHero";
-import { BranchPickerModal } from "@/features/customer/components/BranchPickerModal";
-import { CartDrawer } from "@/features/customer/components/CartDrawer";
 import { CategoryTabs } from "@/features/customer/components/CategoryTabs";
-import { CheckoutForm } from "@/features/customer/components/CheckoutForm";
-import { DetailsPromptModal } from "@/features/customer/components/DetailsPromptModal";
 import { FloatingBar } from "@/features/customer/components/FloatingBar";
+import { LegalFooter } from "@/features/customer/components/LegalFooter";
 import { NoticeToast } from "@/features/customer/components/NoticeToast";
-import { OrderSuccessModal } from "@/features/customer/components/OrderSuccessModal";
-import { ProductEditorModal } from "@/features/customer/components/ProductEditorModal";
 import { ProductGrid } from "@/features/customer/components/ProductGrid";
-import { TrackingPanel } from "@/features/customer/components/TrackingPanel";
-import { useActiveOrder } from "@/features/customer/hooks/useActiveOrder";
 import { useBranchLinks } from "@/features/customer/hooks/useBranchLinks";
-import { useCart } from "@/features/customer/hooks/useCart";
+import { useCheckout } from "@/features/customer/hooks/useCheckout";
+import { useCustomerCart } from "@/features/customer/hooks/useCustomerCart";
 import { useCustomerDetails } from "@/features/customer/hooks/useCustomerDetails";
+import { useCustomerPanels } from "@/features/customer/hooks/useCustomerPanels";
 import { useMenuCatalog } from "@/features/customer/hooks/useMenuCatalog";
 import { useNotice } from "@/features/customer/hooks/useNotice";
 import { useNow } from "@/features/customer/hooks/useNow";
-import { useOrderSubmission } from "@/features/customer/hooks/useOrderSubmission";
 import { useProductEditor } from "@/features/customer/hooks/useProductEditor";
-import { usePushNotifications } from "@/features/customer/hooks/usePushNotifications";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useScrollToTopOnChange } from "@/lib/hooks/useScrollToTopOnChange";
 import { isBranchOpenAt } from "@/lib/branchHours";
@@ -41,27 +34,21 @@ export function CustomerApp() {
   const branchId = activeBranch?.id ?? null;
   const catalog = useMenuCatalog(activeBranch?.id);
   const { notice, showNotice } = useNotice();
-  const cartState = useCart(branchId);
+  const cartState = useCustomerCart(branchId, catalog);
   const { cart } = cartState;
   const details = useCustomerDetails();
-  const tracking = useActiveOrder(showNotice);
-  const { activeOrder } = tracking;
-  const push = usePushNotifications(
-    tracking.orderRef && branchId
-      ? { orderId: tracking.orderRef.id, branchId, trackingToken: tracking.orderRef.trackingToken }
-      : null,
-    showNotice
-  );
-
   const [search, setSearch] = useState("");
-  const [tipPercent, setTipPercent] = useState(10);
-  const [cartOpen, setCartOpen] = useState(false);
-  const [branchPickerOpen, setBranchPickerOpen] = useState(false);
+  const [tipPercent, setTipPercent] = useState(0); // propina voluntaria: empieza en 0
 
   const now = useNow();
   const nowDate = useMemo(() => new Date(now), [now]);
   const branchOpen = useMemo(() => isBranchOpenAt(activeBranch, nowDate), [activeBranch, nowDate]);
 
+  // Al cambiar de sucursal también se cierran el editor y el seguimiento.
+  const panels = useCustomerPanels(branchId, cart.isEmpty, () => {
+    editor.close();
+    checkout.tracking.closeTracking();
+  });
   const editor = useProductEditor(catalog, cart, {
     onAdd: (item, productName) => {
       cartState.add(item);
@@ -69,56 +56,28 @@ export function CustomerApp() {
     },
     onReplace: cartState.replace
   });
-
-  const submission = useOrderSubmission({
+  const checkout = useCheckout({
     branch: activeBranch,
     branchOpen,
-    cart,
     catalog,
+    cartState,
     details,
     tipPercent,
-    onSubmitTap: push.askOnSubmit,
-    onIncompleteLine: (lineId, message) => {
-      setCartOpen(true);
-      editor.openForCartItem(lineId, message);
-    },
-    onSuccess: (order, orderBranchId) => {
-      cartState.clear();
-      setCartOpen(false);
-      editor.close();
-      tracking.start(order.id, order.trackingToken);
-      void push.linkTokenToOrder({ orderId: order.id, branchId: orderBranchId, trackingToken: order.trackingToken });
-    },
-    onError: () => setCartOpen(true)
+    panels,
+    editor,
+    showNotice
   });
+  const { tracking, submission } = checkout;
+  const { activeOrder } = tracking;
 
   useBodyScrollLock(
-    cartOpen ||
-      branchPickerOpen ||
-      tracking.trackingOpen ||
-      editor.isOpen ||
-      submission.state === "success" ||
-      submission.detailsPromptOpen
+    panels.cartOpen || panels.branchPickerOpen || tracking.trackingOpen || editor.isOpen || submission.state === "success"
   );
   useScrollToTopOnChange([activeBranch?.id]);
-
-  // Carrito vacío: se cierra el panel.
-  useEffect(() => {
-    if (cart.isEmpty) setCartOpen(false);
-  }, [cart.isEmpty]);
-
-  // Al cambiar de sucursal se cierran todos los paneles.
-  useEffect(() => {
-    editor.close();
-    setCartOpen(false);
-    setBranchPickerOpen(false);
-    tracking.closeTracking();
-  }, [activeBranch?.id]);
 
   const searchResults = useMemo(() => catalog.search(search), [catalog, search]);
   const sections = useMemo(() => catalog.sectionsFor(searchResults), [catalog, searchResults]);
   const countdownLabel = activeOrder ? OrderLifecycle.countdownLabel(activeOrder, now) : null;
-
   const links = useBranchLinks({ branch: activeBranch, cart, tipPercent, details, activeOrder });
 
   function openProduct(product: Product) {
@@ -126,16 +85,8 @@ export function CustomerApp() {
       showNotice("Ya tienes una orden en curso. Si necesitas cambios, manda mensaje por WhatsApp.");
       return;
     }
-    setCartOpen(false);
+    panels.closeCart();
     editor.openForProduct(product);
-  }
-
-  function retryRejectedOrder() {
-    if (!activeOrder) return;
-    cartState.restore(Cart.reorder(activeOrder.items, () => crypto.randomUUID()));
-    details.setOrderNote(activeOrder.orderNote ?? "");
-    tracking.clear();
-    setCartOpen(true);
   }
 
   if (!activeBranch) {
@@ -156,10 +107,11 @@ export function CustomerApp() {
         isOpen={branchOpen}
         search={search}
         onSearchChange={setSearch}
-        onChangeBranch={() => setBranchPickerOpen(true)}
+        onChangeBranch={panels.openBranchPicker}
       />
       <CategoryTabs categories={catalog.categoriesWithProducts} />
       <ProductGrid sections={sections} isEmpty={!searchResults.length} onSelect={openProduct} />
+      <LegalFooter />
 
       <FloatingBar
         whatsappHref={links.whatsappHref}
@@ -168,89 +120,25 @@ export function CustomerApp() {
         countdownLabel={countdownLabel}
         cart={cart}
         onOpenTracking={tracking.openTracking}
-        onOpenCart={() => setCartOpen(true)}
+        onOpenCart={panels.openCart}
       />
 
-      {branchPickerOpen && (
-        <BranchPickerModal
-          branches={branches}
-          activeBranchId={activeBranch.id}
-          now={nowDate}
-          onSelect={(branch) => {
-            setBranch(branch);
-            setBranchPickerOpen(false);
-          }}
-          onClose={() => setBranchPickerOpen(false)}
-        />
-      )}
-
-      {cartOpen && (
-        <CartDrawer
-          cart={cart}
-          onClose={() => setCartOpen(false)}
-          onRemove={cartState.remove}
-          onQuantityChange={cartState.setQuantity}
-          onEdit={(lineId) => {
-            setCartOpen(true);
-            editor.openForCartItem(lineId);
-          }}
-        >
-          <CheckoutForm
-            cart={cart}
-            details={details}
-            tipPercent={tipPercent}
-            onTipChange={setTipPercent}
-            branchOpen={branchOpen}
-            submission={submission}
-            whatsappTicketHref={links.cartTicketHref}
-            onClearCart={cartState.clear}
-          />
-        </CartDrawer>
-      )}
-
-      {tracking.trackingOpen && activeOrder && (
-        <TrackingPanel
-          order={activeOrder}
-          countdownLabel={countdownLabel}
-          whatsappTicketHref={links.activeOrderTicketHref}
-          showNotificationPrompt={push.permission !== "granted"}
-          showIOSHint={push.isIOS && !push.isStandalone}
-          onEnableNotifications={push.enable}
-          onClose={tracking.closeTracking}
-          onDismissRejected={tracking.clear}
-          onRetryRejected={retryRejectedOrder}
-        />
-      )}
-
-      {editor.selection && (
-        <ProductEditorModal
-          selection={editor.selection}
-          isEditingCartItem={editor.isEditingCartItem}
-          error={editor.error}
-          onToggleOption={editor.toggleOption}
-          onChangeQuantity={editor.changeQuantity}
-          onSave={editor.save}
-          onClose={editor.close}
-        />
-      )}
-
-      {submission.state === "success" && (
-        <OrderSuccessModal
-          message={submission.message}
-          whatsappHref={submission.whatsappHref}
-          onContinue={() => {
-            submission.reset();
-            tracking.closeTracking();
-          }}
-        />
-      )}
-
-      {submission.detailsPromptOpen && (
-        <DetailsPromptModal
-          onWriteDetails={submission.dismissDetailsPrompt}
-          onSubmitWithoutDetails={submission.submitWithoutDetails}
-        />
-      )}
+      <CustomerOverlays
+        branch={activeBranch}
+        branches={branches}
+        onSelectBranch={setBranch}
+        now={nowDate}
+        branchOpen={branchOpen}
+        tipPercent={tipPercent}
+        onTipChange={setTipPercent}
+        countdownLabel={countdownLabel}
+        cartState={cartState}
+        details={details}
+        panels={panels}
+        editor={editor}
+        checkout={checkout}
+        links={links}
+      />
     </div>
   );
 }

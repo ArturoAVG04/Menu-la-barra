@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 import type { Cart } from "@/domain/cart/Cart";
 import { CartLineItem } from "@/features/customer/components/CartLineItem";
+import { useEscapeKey } from "@/features/customer/hooks/useEscapeKey";
 import { currency } from "@/lib/utils";
 
 type CartDrawerProps = {
@@ -11,14 +12,19 @@ type CartDrawerProps = {
   onRemove: (lineId: string) => void;
   onQuantityChange: (lineId: string, quantity: number) => void;
   onEdit: (lineId: string) => void;
+  /** Líneas cuyo producto ya no está disponible. */
+  unavailableIds: readonly string[];
   /** El formulario de checkout va debajo de los productos. */
   children: ReactNode;
 };
 
 /** Panel lateral (abajo en móvil) con el carrito y el checkout. */
-export function CartDrawer({ cart, onClose, onRemove, onQuantityChange, onEdit, children }: CartDrawerProps) {
+export function CartDrawer(props: CartDrawerProps) {
+  const { cart, onClose, onRemove, onQuantityChange, onEdit, children } = props;
+  useEscapeKey(onClose);
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm">
+    <div role="dialog" aria-modal="true" aria-label="Tu pedido" className="fixed inset-0 z-50 bg-black/45 backdrop-blur-sm">
       <div className="ml-auto flex h-full w-full max-w-2xl items-end md:items-stretch">
         <aside className="flex h-[88vh] w-full flex-col overflow-hidden rounded-t-shell border border-line bg-panel shadow-glow md:h-full md:rounded-none md:rounded-l-shell">
           <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
@@ -52,6 +58,7 @@ export function CartDrawer({ cart, onClose, onRemove, onQuantityChange, onEdit, 
                     <CartLineItem
                       key={item.id}
                       item={item}
+                      unavailable={props.unavailableIds.includes(item.id)}
                       onRemove={() => onRemove(item.id)}
                       onQuantityChange={(quantity) => onQuantityChange(item.id, quantity)}
                       onEdit={() => onEdit(item.id)}

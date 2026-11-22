@@ -99,8 +99,8 @@ describe("OrderPricing", () => {
     ).toThrow(/Cantidad inválida/);
   });
 
-  it("limita la propina entre 0 y 100 %", () => {
+  it("limita la propina entre 0 y 30 %", () => {
     expect(OrderPricing.normalizeTipPercent(-5)).toBe(0);
-    expect(OrderPricing.normalizeTipPercent(250)).toBe(100);
+    expect(OrderPricing.normalizeTipPercent(250)).toBe(30);
   });
 });

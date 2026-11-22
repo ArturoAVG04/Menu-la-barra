@@ -2,6 +2,8 @@ import type { MenuProduct, ModifierChoice } from "@/domain/menu/MenuProduct";
 import type { Modifier, ResolvedModifierSelection } from "@/domain/menu/Modifier";
 import type { CartItem } from "@/types";
 
+const MAX_QUANTITY = 50;
+
 type ChosenOptions = Readonly<Record<string, readonly string[]>>;
 
 /**
@@ -57,9 +59,9 @@ export class ProductSelection {
     return new ProductSelection(this.product, { ...this.chosen, [modifierId]: next }, this.quantity);
   }
 
-  /** La cantidad mínima es 1. */
+  /** Cantidad entre 1 y 50. */
   withQuantity(quantity: number) {
-    return new ProductSelection(this.product, this.chosen, Math.max(1, quantity));
+    return new ProductSelection(this.product, this.chosen, Math.min(MAX_QUANTITY, Math.max(1, quantity)));
   }
 
   get choices(): ModifierChoice[] {

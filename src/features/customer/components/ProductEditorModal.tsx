@@ -6,6 +6,7 @@ import { Minus, Plus, X } from "lucide-react";
 import { ProductVisual } from "@/components/customer/ProductVisual";
 import type { ProductSelection } from "@/domain/menu/ProductSelection";
 import { ModifierGroup } from "@/features/customer/components/ModifierGroup";
+import { useEscapeKey } from "@/features/customer/hooks/useEscapeKey";
 import { currency } from "@/lib/utils";
 
 type ProductEditorModalProps = {
@@ -23,6 +24,7 @@ export function ProductEditorModal(props: ProductEditorModalProps) {
   const { selection, error } = props;
   const product = selection.product;
   const panelRef = useRef<HTMLDivElement | null>(null);
+  useEscapeKey(props.onClose);
 
   // Al abrir otro producto, el panel vuelve arriba.
   useEffect(() => {
@@ -30,7 +32,7 @@ export function ProductEditorModal(props: ProductEditorModalProps) {
   }, [product.id]);
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/60 p-4 backdrop-blur-sm">
+    <div role="dialog" aria-modal="true" aria-label={product.name} className="fixed inset-0 z-[60] bg-black/60 p-4 backdrop-blur-sm">
       <div className="mx-auto flex h-full max-w-2xl items-end md:items-center">
         <div
           ref={panelRef}
@@ -51,7 +53,7 @@ export function ProductEditorModal(props: ProductEditorModalProps) {
 
           <div className="p-5 md:p-6 -mt-6 relative z-10">
             <h3 className="text-2xl font-bold text-text">{product.name}</h3>
-            <p className="mt-1.5 text-sm text-muted leading-relaxed">{product.description}</p>
+            <p className="mt-1.5 text-sm text-muted leading-relaxed">{product.description ?? ""}</p>
             <p className="mt-3 text-base font-bold text-brand">Base {currency(selection.basePrice)}</p>
           </div>
 
@@ -72,6 +74,7 @@ export function ProductEditorModal(props: ProductEditorModalProps) {
                   <button
                     type="button"
                     onClick={() => props.onChangeQuantity(-1)}
+                    aria-label="Quitar uno"
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
                   >
                     <Minus size={16} />
@@ -80,6 +83,7 @@ export function ProductEditorModal(props: ProductEditorModalProps) {
                   <button
                     type="button"
                     onClick={() => props.onChangeQuantity(1)}
+                    aria-label="Agregar uno"
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
                   >
                     <Plus size={16} />

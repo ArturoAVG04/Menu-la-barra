@@ -120,7 +120,6 @@ export type PublicTrackedOrder = Pick<
   | "id"
   | "items"
   | "customerName"
-  | "customerPhone"
   | "orderNote"
   | "subtotal"
   | "tipPercent"

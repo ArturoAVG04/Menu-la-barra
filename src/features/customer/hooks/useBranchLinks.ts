@@ -46,7 +46,7 @@ export function useBranchLinks({ branch, cart, tipPercent, details, activeOrder 
             whatsapp,
             branchName,
             customerName: activeOrder.customerName,
-            customerPhone: activeOrder.customerPhone,
+            customerPhone, // el teléfono ya no viaja en el seguimiento
             orderNote: activeOrder.orderNote,
             items: activeOrder.items,
             subtotal: activeOrder.subtotal ?? Math.max(activeOrder.total - (activeOrder.tipAmount ?? 0), 0),
@@ -55,7 +55,7 @@ export function useBranchLinks({ branch, cart, tipPercent, details, activeOrder 
             orderId: activeOrder.id
           })
         : null,
-    [whatsapp, branchName, activeOrder]
+    [whatsapp, branchName, activeOrder, customerPhone]
   );
 
   return {
@@ -65,3 +65,5 @@ export function useBranchLinks({ branch, cart, tipPercent, details, activeOrder 
     activeOrderTicketHref
   };
 }
+
+export type BranchLinks = ReturnType<typeof useBranchLinks>;

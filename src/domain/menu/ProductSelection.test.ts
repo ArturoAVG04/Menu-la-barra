@@ -71,6 +71,7 @@ describe("ProductSelection", () => {
     const selection = ProductSelection.start(product).toggle("salsa", "mango").withQuantity(3);
     expect(selection.total).toBe(240);
     expect(selection.withQuantity(0).quantity).toBe(1);
+    expect(selection.withQuantity(80).quantity).toBe(50);
   });
 
   it("arma la línea del carrito en el orden de los grupos y sin grupos vacíos", () => {
@@ -129,6 +130,11 @@ describe("MenuCatalog", () => {
     expect(catalog.search("  PAPAS ").map((item) => item.id)).toEqual(["burger", "fries"]);
     expect(catalog.search("hambur").map((item) => item.id)).toEqual(["burger", "fries"]);
     expect(catalog.search("secreta")).toEqual([]);
+  });
+
+  it("sin campo available es visible y tolera descripción vacía", () => {
+    const legacy = { ...fries, id: "legacy", name: "Vieja", available: undefined, description: undefined } as unknown as Product;
+    expect(new MenuCatalog(categories, [legacy]).search("vieja").map((item) => item.id)).toEqual(["legacy"]);
   });
 
   it("solo muestra categorías con productos y conserva su posición", () => {

@@ -72,10 +72,12 @@ classDiagram
 |---|---|---|
 | `useCart` | Carrito de la sucursal activa, guardado en el navegador | `Cart`, `LocalJsonStore` |
 | `useProductEditor` | Opciones y cantidad del producto que se edita | `ProductSelection` → `MenuProduct` → `Modifier` |
-| `useActiveOrder` | Seguimiento del pedido (API + Firestore en tiempo real) | `OrderLifecycle`, `orderApi`, `orderRepository` |
+| `useActiveOrder` + `useOrderPolling` | Seguimiento del pedido: consulta `/api/orders/[id]/track` cada 10 s (pausa con la pestaña oculta) | `OrderLifecycle`, `orderApi` |
+| `useCustomerCart` | Carrito con precios del menú actual y líneas "Ya no disponible" | `Cart.repriced`, `Cart.unavailableLineIds` |
+| `useCheckout` / `useCustomerPanels` | Conectan envío, seguimiento y push / abren y cierran paneles | — |
 | `useCustomerDetails` | Nombre, teléfono, nota y aceptación legal (`LEGAL_VERSION`) | `LocalJsonStore` |
 | `usePushNotifications` | Permiso y token push del pedido | `requestPushToken`, `orderApi` |
-| `useOrderSubmission` | Validar y enviar el pedido | `Cart`, `BranchContact`, `orderApi` |
+| `useOrderSubmission` | Validar y enviar el pedido (id fijo `clientOrderId` para no duplicar) | `Cart`, `CustomerInfo`, `BranchContact`, `orderApi` |
 | `useMenuCatalog` | Menú en tiempo real con copia local | `MenuCatalog`, `catalogRepository` |
 | `useBranchLinks` | WhatsApp, Instagram y tickets | `BranchContact` |
 

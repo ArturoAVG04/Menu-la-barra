@@ -157,26 +157,19 @@ export function isBranchOpenAt(branch: Branch | null, currentDate: Date) {
     new Date(currentDate.getTime() - 24 * 60 * 60 * 1000)
   );
 
+  // Abierto si el turno de hoy ya empezó, o si sigue el turno nocturno de ayer.
   return slots.some((slot) => {
+    if (slot.allDay) return slot.days.includes(todayLabel);
     const openMinutes = parseTimeToMinutes(slot.open);
     const closeMinutes = parseTimeToMinutes(slot.close);
-    const isOvernight = openMinutes !== null && closeMinutes !== null && closeMinutes <= openMinutes;
+    if (openMinutes === null || closeMinutes === null) return slot.days.includes(todayLabel);
 
-    if (slot.days.includes(todayLabel)) {
-      if (slot.allDay) return true;
-      if (openMinutes === null || closeMinutes === null) return branch.isOpen;
-
-      if (isOvernight) {
-        return currentMinutes >= openMinutes;
-      }
-
-      return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
-    }
-
-    if (!slot.days.includes(previousDayLabel) || !isOvernight || closeMinutes === null) {
-      return false;
-    }
-
-    return currentMinutes < closeMinutes;
+    const isOvernight = closeMinutes <= openMinutes;
+    const todayShift =
+      slot.days.includes(todayLabel) &&
+      currentMinutes >= openMinutes &&
+      (isOvernight || currentMinutes < closeMinutes);
+    const yesterdayShift = isOvernight && slot.days.includes(previousDayLabel) && currentMinutes < closeMinutes;
+    return todayShift || yesterdayShift;
   });
 }

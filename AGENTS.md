@@ -19,6 +19,15 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - Revisión completa: `/home/arturo/second-brain/04-software/SISTEMAS.md`
 
 ## Registro
+### 2026-11-21 · Cliente: arreglos de bugs, privacidad y abuso de pedidos — Claude (worktree)
+- Horario nocturno (`branchHours`): sábado 01:00 ya cuenta el turno del viernes aunque el sábado también tenga turno. Pruebas en `src/lib/branchHours.test.ts`.
+- Privacidad: el cliente ya no lee `orders/{id}` en Firestore; consulta `/api/orders/[id]/track` cada 10 s (pausa con la pestaña oculta). La ruta ya no devuelve teléfono ni token. `firestore.rules`: `get` de `orders` solo admin (**falta desplegar las reglas**).
+- `/api/orders`: límite de 5 pedidos / 10 min por IP (colección `rateLimits`, doc = sha256(IP), 429); nombre y teléfono de 10 dígitos obligatorios (`CustomerInfo`, se quitó "Pedir sin datos"); `clientOrderId` (UUID guardado en `la-barra-pending-order`) es el id del documento: un reintento devuelve el mismo pedido. La respuesta trae `subtotal`, `tipAmount` y `total`.
+- Carrito: precios al día con el menú (`Cart.repriced`), "Ya no disponible" bloquea el envío, máximo 50 por línea, líneas guardadas inválidas se descartan. No se puede mandar otro pedido con uno en curso. Ticket de WhatsApp con número de pedido y total del servidor.
+- Propina empieza en 0 % y máximo 30 % (también en el servidor). Enlaces "Aviso de privacidad · Términos" al final del menú. Accesibilidad: modales con `role="dialog"` y Escape, etiquetas en los campos.
+- Hidratación (#418): `AppProviders` se dividió en `useBranchSelection`, `useBranchBranding`, `useAuthRole` y lee el localStorage después de montar (layout effect). Si la sucursal guardada ya no existe, usa la preferida. `CustomerApp` se dividió (`CustomerOverlays`, `useCheckout`, `useCustomerPanels`, `useCustomerCart`).
+- Pendiente: desplegar `firestore.rules`; opcional TTL de Firestore sobre `rateLimits.expiresAt`.
+
 ### 2026-11-07 · Revisión + arreglo de reglas de Firestore — Claude
 - Revisión de solo lectura (estado, seguridad, Admin SDK). Detalle en `second-brain/04-software/SISTEMAS.md`.
 - `firestore.rules`: se agregó `isAdmin()` (claim `role=="admin"` o `admin==true`, igual que `AppProviders.tsx`). Escritura y `list` de `orders` solo para admin; `get` de un pedido es público por su ID (para el seguimiento del cliente). Sin commit.
