@@ -16,6 +16,8 @@ type CheckoutFormProps = {
   submission: Pick<OrderSubmission, "state" | "message" | "requestSubmit">;
   /** Ticket por WhatsApp para cuando la sucursal está cerrada. */
   whatsappTicketHref: string | null;
+  /** Línea antes de pedir el permiso de notificaciones. */
+  showPushHint: boolean;
   onClearCart: () => void;
 };
 
@@ -34,20 +36,37 @@ export function CheckoutForm(props: CheckoutFormProps) {
         <h3 className="mt-2 text-2xl font-semibold text-text">Completa tu pedido</h3>
       </div>
 
+      <label htmlFor="customer-name" className="sr-only">
+        Nombre
+      </label>
       <input
+        id="customer-name"
         value={details.customerName}
         onChange={(event) => details.setCustomerName(event.target.value)}
         placeholder="Nombre para el pedido"
+        autoComplete="name"
+        maxLength={60}
         className={inputClass}
       />
+      <label htmlFor="customer-phone" className="sr-only">
+        Teléfono
+      </label>
       <input
+        id="customer-phone"
         value={details.customerPhone}
         onChange={(event) => details.setCustomerPhone(event.target.value)}
-        placeholder="Numero de telefono"
+        placeholder="Número de teléfono (10 dígitos)"
         inputMode="tel"
+        type="tel"
+        autoComplete="tel-national"
+        maxLength={20}
         className={inputClass}
       />
+      <label htmlFor="order-note" className="sr-only">
+        Nota
+      </label>
       <textarea
+        id="order-note"
         value={details.orderNote}
         onChange={(event) => details.setOrderNote(event.target.value)}
         rows={1}
@@ -89,6 +108,10 @@ export function CheckoutForm(props: CheckoutFormProps) {
           )}
         </button>
       </div>
+
+      {props.showPushHint && branchOpen && (
+        <p className="text-center text-xs text-muted">Te avisamos cuando tu pedido esté listo.</p>
+      )}
 
       {submission.state === "error" && submission.message && (
         <p className="text-sm font-medium text-danger">{submission.message}</p>

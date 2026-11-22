@@ -11,13 +11,20 @@ export type MenuSection = { category: Category; position: number; products: Prod
 export class MenuCatalog {
   constructor(
     readonly categories: readonly Category[],
-    readonly products: readonly Product[]
+    readonly products: readonly Product[],
+    /** true cuando el menú ya llegó de Firestore (no solo la copia local). */
+    readonly isLive = false
   ) {}
+
+  /** Sin el campo `available` se considera disponible (igual que el servidor). */
+  static isVisible(product: Product) {
+    return product.available !== false;
+  }
 
   /** Categorías que tienen al menos un producto (para las pestañas). */
   get categoriesWithProducts(): Category[] {
     return this.categories.filter((category) =>
-      this.products.some((product) => product.categoryId === category.id)
+      this.products.some((product) => product.categoryId === category.id && MenuCatalog.isVisible(product))
     );
   }
 
@@ -26,13 +33,13 @@ export class MenuCatalog {
     const normalized = term.trim().toLowerCase();
 
     return this.products.filter((product) => {
-      if (!product.available) return false;
+      if (!MenuCatalog.isVisible(product)) return false;
       if (!normalized) return true;
 
       const category = this.categories.find((item) => item.id === product.categoryId);
       return (
-        product.name.toLowerCase().includes(normalized) ||
-        product.description.toLowerCase().includes(normalized) ||
+        (product.name ?? "").toLowerCase().includes(normalized) ||
+        (product.description ?? "").toLowerCase().includes(normalized) ||
         Boolean(category?.name.toLowerCase().includes(normalized))
       );
     });
@@ -48,6 +55,9 @@ export class MenuCatalog {
       }))
       .filter((section) => section.products.length > 0);
   }
+
+  /** Para pasar como función: `catalog.finder`. */
+  readonly finder = (productId: string) => this.findProduct(productId);
 
   findProduct(productId: string): MenuProduct | null {
     const product = this.products.find((item) => item.id === productId);

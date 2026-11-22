@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { orderApi } from "@/infrastructure";
 import { requestPushToken } from "@/lib/pwa/notifications";
@@ -25,20 +25,20 @@ async function linkTokenToOrder({ orderId, branchId, trackingToken }: PushTarget
  * `onNotice` muestra el resultado al cliente.
  */
 export function usePushNotifications(target: PushTarget | null, onNotice: (message: string) => void) {
-  const [permission, setPermission] = useState<NotificationPermission>(() =>
-    supportsNotifications() ? Notification.permission : "default"
-  );
+  const [permission, setPermission] = useState<NotificationPermission>("default");
+  const [device, setDevice] = useState({ supported: false, isIOS: false, isStandalone: false });
 
-  const isIOS = useMemo(
-    () => typeof window !== "undefined" && /iphone|ipad|ipod/i.test(window.navigator.userAgent),
-    []
-  );
-  const isStandalone = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return Boolean(
-      (window.navigator as Navigator & { standalone?: boolean }).standalone ||
-        window.matchMedia("(display-mode: standalone)").matches
-    );
+  // Se lee después de montar para no romper la hidratación.
+  useEffect(() => {
+    if (supportsNotifications()) setPermission(Notification.permission);
+    setDevice({
+      supported: supportsNotifications(),
+      isIOS: /iphone|ipad|ipod/i.test(window.navigator.userAgent),
+      isStandalone: Boolean(
+        (window.navigator as Navigator & { standalone?: boolean }).standalone ||
+          window.matchMedia("(display-mode: standalone)").matches
+      )
+    });
   }, []);
 
   const { orderId, branchId, trackingToken } = target ?? {};
@@ -82,7 +82,16 @@ export function usePushNotifications(target: PushTarget | null, onNotice: (messa
     }
   }
 
-  return { permission, isIOS, isStandalone, askOnSubmit, enable, linkTokenToOrder };
+  return {
+    permission,
+    isIOS: device.isIOS,
+    isStandalone: device.isStandalone,
+    /** Aún no se ha preguntado (para mostrar el aviso antes de pedir permiso). */
+    willAsk: device.supported && permission === "default",
+    askOnSubmit,
+    enable,
+    linkTokenToOrder
+  };
 }
 
 export type PushNotifications = ReturnType<typeof usePushNotifications>;

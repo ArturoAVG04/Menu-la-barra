@@ -3,33 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 
 import { OrderLifecycle } from "@/domain/order/OrderStatus";
-import { orderApi, orderRepository } from "@/infrastructure";
+import { useOrderPolling } from "@/features/customer/hooks/useOrderPolling";
 import { LocalJsonStore } from "@/infrastructure/browser/LocalJsonStore";
-import type { Order, PublicTrackedOrder } from "@/types";
+import type { PublicTrackedOrder } from "@/types";
 
 /** Lo mínimo para volver a encontrar el pedido después de recargar la página. */
 type ActiveOrderRef = { id: string; trackingToken: string };
 
 const activeOrderStore = new LocalJsonStore<Partial<ActiveOrderRef> | null>("la-barra-active-order", null);
-
-function toPublicOrder(order: Order): PublicTrackedOrder {
-  return {
-    id: order.id,
-    items: order.items ?? [],
-    customerName: order.customerName ?? "",
-    customerPhone: order.customerPhone ?? "",
-    orderNote: order.orderNote ?? "",
-    subtotal: order.subtotal ?? 0,
-    tipPercent: order.tipPercent ?? 0,
-    tipAmount: order.tipAmount ?? 0,
-    total: order.total ?? 0,
-    status: order.status ?? "new",
-    estimatedMinutes: order.estimatedMinutes,
-    estimatedReadyAt: order.estimatedReadyAt,
-    statusMessage: order.statusMessage ?? "",
-    createdAt: order.createdAt ?? Date.now()
-  };
-}
 
 /** Notificación local del navegador cuando cambia el estado (si ya hay permiso). */
 function showStatusNotification(order: PublicTrackedOrder, statusLabel: string) {
@@ -46,8 +27,8 @@ function showStatusNotification(order: PublicTrackedOrder, statusLabel: string) 
 }
 
 /**
- * Seguimiento del pedido activo: lo recuerda en el navegador, lo consulta por la API
- * y escucha sus cambios en tiempo real. Avisa con `onNotice` cuando cambia de estado.
+ * Seguimiento del pedido activo: lo recuerda en el navegador y lo consulta por la API
+ * (con el token). Avisa con `onNotice` cuando cambia de estado.
  */
 export function useActiveOrder(onNotice: (message: string) => void) {
   const [orderRef, setOrderRef] = useState<ActiveOrderRef | null>(null);
@@ -70,56 +51,29 @@ export function useActiveOrder(onNotice: (message: string) => void) {
   /** Empieza a seguir un pedido recién creado. */
   function start(id: string, trackingToken: string) {
     activeOrderStore.write({ id, trackingToken });
+    setActiveOrder(null);
+    setLastNotifiedStatus(null);
     setOrderRef({ id, trackingToken });
     setTrackingOpen(false);
   }
 
   useEffect(() => {
     const stored = activeOrderStore.read();
-    if (stored?.id && stored.trackingToken) {
+    if (typeof stored?.id === "string" && typeof stored.trackingToken === "string") {
       setOrderRef({ id: stored.id, trackingToken: stored.trackingToken });
     } else if (stored) {
       activeOrderStore.clear();
     }
   }, []);
 
-  useEffect(() => {
-    if (!orderRef) {
-      setActiveOrder(null);
-      setLastNotifiedStatus(null);
-      setTrackingOpen(false);
-      return;
+  useOrderPolling(orderRef, activeOrder?.status ?? null, (order) => {
+    if (!order) return clear();
+    if (order.status === "delivered") {
+      noticeRef.current("Pedido entregado");
+      return clear();
     }
-
-    let cancelled = false;
-
-    // Primero por la API (rápido); si falla, queda la escucha en tiempo real de Firestore.
-    orderApi
-      .track(orderRef.id, orderRef.trackingToken)
-      .then((order) => {
-        if (!cancelled && order) setActiveOrder(order);
-      })
-      .catch(() => undefined);
-
-    const unsubscribe = orderRepository.subscribe(orderRef.id, (order) => {
-      if (cancelled) return;
-      if (!order) {
-        clear();
-        return;
-      }
-      if (order.status === "delivered") {
-        noticeRef.current("Pedido entregado");
-        clear();
-        return;
-      }
-      setActiveOrder(toPublicOrder(order));
-    });
-
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, [orderRef]);
+    setActiveOrder(order);
+  });
 
   useEffect(() => {
     if (!activeOrder) return;
@@ -138,6 +92,8 @@ export function useActiveOrder(onNotice: (message: string) => void) {
   return {
     activeOrder,
     orderRef,
+    /** Hay un pedido sin terminar (ni entregado ni rechazado): no se puede mandar otro. */
+    hasOrderInProgress: Boolean(orderRef) && !(activeOrder && OrderLifecycle.isFinished(activeOrder.status)),
     trackingOpen,
     openTracking: () => setTrackingOpen(true),
     closeTracking: () => setTrackingOpen(false),

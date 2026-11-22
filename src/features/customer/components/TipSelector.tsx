@@ -1,4 +1,5 @@
 import type { Cart } from "@/domain/cart/Cart";
+import { MAX_TIP_PERCENT } from "@/domain/order/OrderPricing";
 import { currency } from "@/lib/utils";
 
 const TIP_PRESETS = [0, 10, 15, 20];
@@ -16,7 +17,7 @@ export function TipSelector({ cart, tipPercent, onChange }: TipSelectorProps) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="font-semibold text-text">Propina</p>
-          <p className="text-sm text-muted">Ajusta el porcentaje para este pedido</p>
+          <p className="text-sm text-muted">Opcional</p>
         </div>
         <span className="rounded-full bg-brand/10 px-3 py-1 text-sm font-semibold text-brand">{tipPercent}%</span>
       </div>
@@ -40,7 +41,8 @@ export function TipSelector({ cart, tipPercent, onChange }: TipSelectorProps) {
       <input
         type="range"
         min="0"
-        max="100"
+        max={MAX_TIP_PERCENT}
+        aria-label="Propina en porcentaje"
         step="1"
         value={tipPercent}
         onChange={(event) => onChange(Number(event.target.value))}

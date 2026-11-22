@@ -19,7 +19,7 @@ export function MenuCard({ product, onSelect, priority = false }: MenuCardProps)
     <button
       type="button"
       onClick={() => onSelect(product)}
-      disabled={!product.available}
+      disabled={product.available === false}
       className="group relative flex w-full items-stretch justify-between overflow-hidden rounded-card border border-line bg-panel p-3 md:p-3.5 text-left shadow-sm transition hover:border-brand/40 hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-75 gap-3"
     >
       <div className="flex flex-1 flex-col justify-between min-w-0 pr-1 py-0.5">
@@ -48,13 +48,13 @@ export function MenuCard({ product, onSelect, priority = false }: MenuCardProps)
       <div className="relative h-24 w-24 shrink-0 sm:h-28 sm:w-28 overflow-hidden rounded-card bg-surface border border-line/50">
         <ProductVisual product={product} priority={priority} />
 
-        {!product.available && (
+        {product.available === false && (
           <div className="absolute inset-0 grid place-items-center bg-surface/90 text-center text-xs font-bold text-danger p-1">
             Agotado
           </div>
         )}
 
-        {product.available && (
+        {product.available !== false && (
           <div className="absolute bottom-1 right-1">
             <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand text-white shadow-glow transition group-hover:scale-110 group-hover:bg-accent active:scale-95">
               <Plus size={16} />

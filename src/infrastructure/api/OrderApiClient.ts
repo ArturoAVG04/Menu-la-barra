@@ -4,6 +4,8 @@ import type { CartItem, OrderStatus, PublicTrackedOrder } from "@/types";
 
 export type CreateOrderInput = {
   branchId: string;
+  /** Mismo id en cada reintento: el servidor no duplica el pedido. */
+  clientOrderId: string;
   items: readonly CartItem[];
   customerName: string;
   customerPhone: string;
@@ -11,6 +13,9 @@ export type CreateOrderInput = {
   tipPercent: number;
   legalVersion: string;
 };
+
+/** Respuesta del servidor con los montos ya calculados por él. */
+export type CreatedOrder = { id: string; trackingToken: string; subtotal: number; tipAmount: number; total: number };
 
 export type OrderStatusUpdate = {
   status: OrderStatus;
@@ -43,10 +48,11 @@ export class OrderApiClient {
 
   /** Solo manda ids, cantidades y opciones: el servidor recalcula los precios. */
   async create(input: CreateOrderInput) {
-    const result = await this.request<{ id: string; trackingToken: string; total?: number }>(
+    const result = await this.request<CreatedOrder>(
       "/api/orders",
       this.json({
         branchId: input.branchId,
+        clientOrderId: input.clientOrderId,
         items: input.items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -70,7 +76,7 @@ export class OrderApiClient {
 
   async track(orderId: string, trackingToken: string): Promise<PublicTrackedOrder | null> {
     const search = new URLSearchParams({ token: trackingToken });
-    const response = await fetch(`/api/orders/${orderId}/track?${search}`, { cache: "no-store" });
+    const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/track?${search}`, { cache: "no-store" });
     if (response.status === 404) return null;
     const body = await response.json().catch(() => null);
     if (!response.ok) throw new Error(body?.error || "No se pudo consultar el pedido");

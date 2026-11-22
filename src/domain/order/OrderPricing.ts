@@ -21,7 +21,8 @@ export type PricedOrder = {
 
 const MAX_LINES = 50;
 const MAX_QUANTITY_PER_LINE = 50;
-const MAX_TIP_PERCENT = 100;
+/** Propina voluntaria: máximo 30 %. */
+export const MAX_TIP_PERCENT = 30;
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 

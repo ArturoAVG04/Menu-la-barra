@@ -4,6 +4,7 @@ import { OrderLifecycle } from "@/domain/order/OrderStatus";
 import { NotificationPrompt } from "@/features/customer/components/NotificationPrompt";
 import { TrackedOrderSummary } from "@/features/customer/components/TrackedOrderSummary";
 import { TrackingSteps } from "@/features/customer/components/TrackingSteps";
+import { useEscapeKey } from "@/features/customer/hooks/useEscapeKey";
 import type { PublicTrackedOrder } from "@/types";
 
 type TrackingPanelProps = {
@@ -21,9 +22,10 @@ type TrackingPanelProps = {
 /** Modal de seguimiento del pedido activo. */
 export function TrackingPanel(props: TrackingPanelProps) {
   const { order, countdownLabel } = props;
+  useEscapeKey(props.onClose);
 
   return (
-    <div className="fixed inset-0 z-[65] bg-black/55 p-4 backdrop-blur-sm">
+    <div role="dialog" aria-modal="true" aria-label="Seguimiento del pedido" className="fixed inset-0 z-[65] bg-black/55 p-4 backdrop-blur-sm">
       <div className="mx-auto flex h-full max-w-2xl items-end md:items-center">
         <div className="max-h-[88vh] w-full overflow-y-auto rounded-shell border border-line bg-panel p-5 shadow-glow md:p-6">
           <div className="flex items-center justify-between gap-3">
