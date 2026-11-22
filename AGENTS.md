@@ -119,3 +119,7 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - Legal (skill nueva `legal`): aviso con Secretaría Anticorrupción y Buen Gobierno, plazos ARCO 20+15 días, proveedores reales (Web Push), alergias, sin la frase falsa de "conservamos registro de venta", aviso simplificado con responsable; términos: precios finales con impuestos, propina empieza en 0 %. `LEGAL_VERSION` 2026-11-21.
 - Pruebas: 79 pasan, tsc y build OK. Producción verificada con puppeteer: menú sin errores de consola, pie con ligas legales, aviso nuevo, `/api/admin/upload` sin sesión = 401. Tag de respaldo `antes-revision-2026-11-21`.
 - Reglas desplegadas 2026-11-21 con autorización de Arturo (leer pedido sin sesión = 403). **Pendiente:** domicilio con CP y aclarar "Linterna 10 s/n"; rotar llave ImgBB; probar en el admin: subir imagen, aceptar pedido, borrar sucursal de prueba.
+
+## 2026-11-21 · Liga editable para QR/NFC — Claude
+- `src/app/ir/[slug]/route.ts`: `/ir/<slug>` redirige (307) a la URL del campo `url` de Firestore `enlaces/<slug>` (solo https; si no, al menú). Las reglas no abren `enlaces` (solo lo lee el servidor). Se crea o edita desde la consola de Firebase.
+- `enlaces/video` creado para el QR del cartel (por ahora apunta al menú). Probado en producción: al cambiar la URL cambia el destino.
