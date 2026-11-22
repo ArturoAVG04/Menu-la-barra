@@ -95,3 +95,8 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 - En el celular de Arturo el problema era Chrome (permisos y batería); ya llegan los avisos del admin.
 - "Probar aviso" ya no lanza la notificación local: solo manda una por el servidor, para no duplicar.
 - `useNewOrderSound`: el beep anterior era un WAV vacío (no sonaba). Ahora es una campanita de 3 notas con Web Audio + vibración, mientras el panel está abierto. El sonido de las notificaciones del sistema no se puede cambiar desde la web: se cambia en los ajustes de Android de la app/Chrome.
+
+### 2026-11-21 · Auditoría legal (skill `legal`) — Claude
+- Nueva skill `~/.claude/skills/legal/SKILL.md` (LFPDPPP 2025, LFPC/PROFECO, NMX-COE). Auditoría de solo lectura, sin cambios en código.
+- Hallazgos clave: propina preseleccionada en 10 % (`CustomerApp.tsx:57`); el cron solo borra pedidos `delivered`/`rejected` (los demás quedan para siempre, contra "se borran a los 3 días"); el aviso no nombra a la Secretaría Anticorrupción y Buen Gobierno ni da plazos ARCO (20+15 días); falta aviso simplificado completo junto al formulario; push usa servicios de Google/Apple/Mozilla, no Firebase; no hay liga a aviso/términos fuera del checkout; "Linterna 10 s/n" es contradictorio.
+- Pendiente: Arturo decide qué arreglar; subir `LEGAL_VERSION` al cambiar textos.

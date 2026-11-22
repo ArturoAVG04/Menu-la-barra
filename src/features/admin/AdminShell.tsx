@@ -11,6 +11,7 @@ import { useAdminBranchSelection } from "@/features/admin/hooks/useAdminBranchSe
 import { useAdminNotices } from "@/features/admin/hooks/useAdminNotices";
 import { useAdminOrders } from "@/features/admin/hooks/useAdminOrders";
 import { useAdminPush } from "@/features/admin/hooks/useAdminPush";
+import { useNewOrderSound } from "@/features/admin/hooks/useNewOrderSound";
 import { useBranchEditor } from "@/features/admin/hooks/useBranchEditor";
 import { useBranchManager } from "@/features/admin/hooks/useBranchManager";
 import { AdminHeader } from "@/features/admin/layout/AdminHeader";
@@ -40,6 +41,7 @@ export function AdminShell() {
   const orders = useAdminOrders(selectedBranch, currentUser, notify);
   const branchEditor = useBranchEditor(selectedBranch, branches, notify);
   const branchManager = useBranchManager(branches, notify);
+  useNewOrderSound(orders.orders.filter((order) => order.status === "new").map((order) => order.id));
 
   useBodyScrollLock(mobileDrawerOpen || showCreateBranch);
   useScrollToTopOnChange([section, adminBranchId]);
@@ -64,7 +66,7 @@ export function AdminShell() {
         setSection(next);
         setMobileDrawerOpen(false);
       }}
-      onLogout={() => void logout()}
+      onLogout={() => void push.forgetDevice().finally(() => logout())}
     />
   );
 

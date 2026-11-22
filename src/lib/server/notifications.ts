@@ -2,9 +2,24 @@ import { createHash } from "node:crypto";
 
 import { FieldValue } from "firebase-admin/firestore";
 
+import { OrderLifecycle } from "@/domain/order/OrderStatus";
+import { PushSubscriptionPolicy } from "@/domain/push/PushSubscriptionPolicy";
 import { adminDb } from "@/lib/firebase/admin";
 import { WebPushSender } from "@/lib/server/push/WebPushSender";
 import type { OrderStatus } from "@/types";
+
+/** La suscripción push no es de un servicio conocido o viene dañada. */
+export class InvalidSubscriptionError extends Error {}
+
+/** Otro dispositivo ya cambió el pedido a un estado que no permite este cambio. */
+export class StatusConflictError extends Error {}
+
+/** Valida la suscripción o lanza InvalidSubscriptionError. */
+function requireValidSubscription(token: string) {
+  const normalized = PushSubscriptionPolicy.normalize(token);
+  if (!normalized) throw new InvalidSubscriptionError("Suscripción de avisos no válida");
+  return normalized;
+}
 
 export type OrderStatusUpdatePayload = {
   status: OrderStatus;
@@ -48,10 +63,7 @@ function buildNotificationPayload(orderId: string, payload: OrderStatusUpdatePay
 }
 
 export async function saveOrderNotificationToken(orderId: string, token: string, branchId: string) {
-  const normalizedToken = token.trim();
-  if (!normalizedToken) {
-    throw new Error("Missing notification token");
-  }
+  const normalizedToken = requireValidSubscription(token);
 
   const docId = getNotificationTokenDocumentId(orderId, normalizedToken);
   await adminDb().collection(ORDER_NOTIFICATION_COLLECTION).doc(docId).set(
@@ -71,16 +83,22 @@ export async function updateOrderAndSendNotifications(
   payload: OrderStatusUpdatePayload
 ) {
   const orderRef = adminDb().collection("orders").doc(orderId);
-  await orderRef.update({
-    status: payload.status,
-    updatedAt: Date.now(),
-    ...(typeof payload.estimatedMinutes === "number"
-      ? { estimatedMinutes: payload.estimatedMinutes }
-      : {}),
-    ...(typeof payload.estimatedReadyAt === "number"
-      ? { estimatedReadyAt: payload.estimatedReadyAt }
-      : {}),
-    ...(payload.statusMessage ? { statusMessage: payload.statusMessage } : {})
+  // Se valida contra el estado ACTUAL en una transacción: si dos dispositivos cambian el
+  // pedido al mismo tiempo (uno acepta y otro rechaza), el segundo recibe un error en vez de pisar.
+  await adminDb().runTransaction(async (transaction) => {
+    const fresh = await transaction.get(orderRef);
+    if (!fresh.exists) throw new StatusConflictError("El pedido ya no existe");
+    const current = fresh.get("status") as OrderStatus;
+    if (current !== payload.status && !OrderLifecycle.canTransition(current, payload.status)) {
+      throw new StatusConflictError(`El pedido ya está "${OrderLifecycle.label(current)}"`);
+    }
+    transaction.update(orderRef, {
+      status: payload.status,
+      updatedAt: Date.now(),
+      ...(typeof payload.estimatedMinutes === "number" ? { estimatedMinutes: payload.estimatedMinutes } : {}),
+      ...(typeof payload.estimatedReadyAt === "number" ? { estimatedReadyAt: payload.estimatedReadyAt } : {}),
+      ...(payload.statusMessage ? { statusMessage: payload.statusMessage.slice(0, 300) } : {})
+    });
   });
 
   const pushPayload = buildNotificationPayload(orderId, payload);
@@ -129,8 +147,7 @@ function hashToken(token: string) {
 }
 
 export async function saveAdminNotificationToken(token: string, uid: string) {
-  const normalizedToken = token.trim();
-  if (!normalizedToken) throw new Error("Missing notification token");
+  const normalizedToken = requireValidSubscription(token);
 
   await adminDb()
     .collection(ADMIN_NOTIFICATION_COLLECTION)
@@ -144,6 +161,16 @@ export async function saveAdminNotificationToken(token: string, uid: string) {
       },
       { merge: true }
     );
+}
+
+/** Al cerrar sesión: este dispositivo deja de recibir avisos de pedidos. */
+export async function deleteAdminNotificationToken(token: string) {
+  const normalized = PushSubscriptionPolicy.normalize(token);
+  await Promise.all(
+    [token.trim(), normalized].filter((t): t is string => !!t).map((t) =>
+      adminDb().collection(ADMIN_NOTIFICATION_COLLECTION).doc(hashToken(t)).delete()
+    )
+  );
 }
 
 /** Valida que el pedido exista y que el trackingToken coincida (solo lo conoce quien lo creó). */
@@ -191,11 +218,19 @@ export async function notifyAdminsOfNewOrder(orderId: string, trackingToken: str
     branchName || null
   ].filter(Boolean);
 
-  const { successCount, invalidTokens } = await new WebPushSender().send(tokens, {
-    title: `Nuevo pedido #${orderId.slice(-6).toUpperCase()}`,
-    body: parts.join(" · "),
-    url: "/admin"
-  });
+  let result: { successCount: number; invalidTokens: string[] };
+  try {
+    result = await new WebPushSender().send(tokens, {
+      title: `Nuevo pedido #${orderId.slice(-6).toUpperCase()}`,
+      body: parts.join(" · "),
+      url: "/admin"
+    });
+  } catch (error) {
+    // Si el envío falla, se quita la marca para que se pueda reintentar.
+    await order.ref.update({ adminNotifiedAt: FieldValue.delete() }).catch(() => undefined);
+    throw error;
+  }
+  const { successCount, invalidTokens } = result;
 
   await Promise.all(
     invalidTokens.map((invalidToken) =>

@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { Archive, BellRing, ChefHat, Clock3, PackageCheck } from "lucide-react";
 
 import { OrderBoard } from "@/domain/order/OrderBoard";
-import { useNewOrderSound } from "@/features/admin/hooks/useNewOrderSound";
 import { ActiveOrderCard } from "@/features/admin/orders/ActiveOrderCard";
 import { HistoryOrderCard } from "@/features/admin/orders/HistoryOrderCard";
 import type { OrderActions } from "@/features/admin/orders/types";
@@ -29,8 +28,6 @@ export function OrderTracker({ orders, ...actions }: { orders: Order[] } & Order
   const board = useMemo(() => new OrderBoard(orders), [orders]);
   const activeOrders = board.active;
   const historyOrders = board.history;
-
-  useNewOrderSound(board.newCount);
 
   return (
     <section className="space-y-4 text-center">

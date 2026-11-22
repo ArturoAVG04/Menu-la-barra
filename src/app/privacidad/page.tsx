@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/legal/LegalPage";
-import { LEGAL_OWNER } from "@/lib/legal";
+import { LEGAL_OWNER, LEGAL_VERSION } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Aviso de privacidad | La Barra",
@@ -33,10 +33,11 @@ export default function PrivacidadPage() {
           WhatsApp.
         </li>
         <li>Contenido de tu pedido, notas, propina, fecha y hora.</li>
+        <li>Alergias, solo si tú las escribes en la nota: las usamos únicamente para preparar tu pedido y se borran con él.</li>
         <li>Si lo autorizas en tu navegador, un identificador técnico para enviarte notificaciones del pedido.</li>
       </ul>
       <p>
-        <strong>No recabamos datos personales sensibles</strong> ni datos bancarios: los pagos se hacen en efectivo
+        <strong>No te pedimos datos personales sensibles</strong> ni datos bancarios: los pagos se hacen en efectivo
         o con terminal física al recibir o recoger tu pedido. Te pedimos no escribir información sensible en las
         notas.
       </p>
@@ -61,16 +62,17 @@ export default function PrivacidadPage() {
       <p>
         <strong>No vendemos ni compartimos tus datos con terceros</strong> para sus propios fines. Para operar el
         menú usamos proveedores tecnológicos que guardan o procesan la información únicamente por cuenta nuestra:
-        Google Firebase (base de datos y notificaciones), Vercel (alojamiento del sitio) y WhatsApp (si eliges
-        enviarnos tu pedido por ese medio). Podremos entregar datos a autoridades cuando una ley u orden
-        competente lo exija.
+        Google Firebase (base de datos), Vercel (alojamiento del sitio), el servicio de notificaciones de tu
+        navegador (Google, Apple o Mozilla, solo si aceptas notificaciones) y WhatsApp (si eliges enviarnos tu
+        pedido por ese medio). El aviso de pedido nuevo que recibe el personal incluye tu nombre y el total. No
+        realizamos transferencias de datos que requieran tu consentimiento. Podremos entregar datos a autoridades
+        cuando una ley u orden competente lo exija.
       </p>
 
       <h2>5. Cuánto tiempo los guardamos</h2>
       <p>
         Los pedidos en línea (con nombre y teléfono) <strong>se eliminan automáticamente a los 3 días</strong> de
-        haberse creado. Para nuestra contabilidad solo conservamos el registro de la venta (productos y monto), sin
-        tus datos de contacto. Si nos escribes por WhatsApp, la conversación se conserva en el teléfono del negocio
+        haberse creado, sin importar su estado. Si nos escribes por WhatsApp, la conversación se conserva en el teléfono del negocio
         mientras sea útil para atenderte; puedes pedir que la borremos. En tu dispositivo, el navegador guarda tu nombre y teléfono para no pedírtelos de
         nuevo; puedes borrarlos limpiando los datos del sitio en tu navegador.
       </p>
@@ -81,22 +83,23 @@ export default function PrivacidadPage() {
         <strong>oponerte</strong> a su uso o <strong>revocar</strong> tu consentimiento. Envía tu solicitud por
         WhatsApp al <a href={o.whatsappHref}>{o.whatsapp}</a> indicando tu nombre, el teléfono que usaste, qué
         derecho quieres ejercer y, si aplica, el pedido relacionado. Podremos pedirte confirmar tu identidad.
-        Responderemos dentro de los plazos que marca la ley.
+        Te responderemos en un máximo de 20 días y, si procede, lo haremos efectivo dentro de los 15 días
+        siguientes. Atiende las solicitudes: {o.ownerName}.
       </p>
       <p>
-        Si consideras que tu derecho a la protección de datos fue vulnerado, puedes acudir a la autoridad
-        competente en materia de protección de datos personales.
+        Si consideras que tu derecho a la protección de datos fue vulnerado, puedes acudir a la Secretaría
+        Anticorrupción y Buen Gobierno, autoridad en materia de protección de datos personales.
       </p>
 
       <h2>7. Almacenamiento local y cookies</h2>
       <p>
-        El sitio usa el almacenamiento local de tu navegador para recordar tu carrito, tus datos de contacto y el
-        pedido en curso. No usamos cookies de publicidad ni rastreadores de terceros.
+        El sitio usa el almacenamiento local de tu navegador para recordar tu carrito, tus datos de contacto, el
+        pedido en curso y el tema (claro u oscuro). No usamos cookies de publicidad ni rastreadores de terceros.
       </p>
 
       <h2>8. Cambios a este aviso</h2>
       <p>
-        Cualquier cambio se publicará en esta misma página con su fecha de actualización. Consulta también
+        Cualquier cambio se publicará en esta misma página. Última actualización: {LEGAL_VERSION}. Consulta también
         nuestros <Link href="/terminos">Términos y condiciones</Link>.
       </p>
     </LegalPage>

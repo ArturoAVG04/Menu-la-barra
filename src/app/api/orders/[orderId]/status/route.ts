@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import { requireAdminUser } from "@/lib/server/auth";
 import {
+  StatusConflictError,
   updateOrderAndSendNotifications,
   type OrderStatusUpdatePayload
 } from "@/lib/server/notifications";
@@ -54,6 +55,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     await updateOrderAndSendNotifications(orderId, body);
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof StatusConflictError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     console.error("Error al actualizar estado del pedido:", error);
     return NextResponse.json(
       { error: "No se pudo actualizar el pedido" },

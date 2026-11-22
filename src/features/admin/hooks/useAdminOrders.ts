@@ -30,7 +30,9 @@ export function useAdminOrders(branch: Branch | null, currentUser: User | null, 
       return;
     }
 
-    return orderRepository.subscribeByBranch(branch.id, setOrders);
+    return orderRepository.subscribeByBranch(branch.id, setOrders, () =>
+      notify("Se perdió la conexión con los pedidos. Cierra sesión y vuelve a entrar.")
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, branch?.id]);
 

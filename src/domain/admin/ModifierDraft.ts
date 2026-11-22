@@ -1,3 +1,4 @@
+import { SortOrder } from "@/domain/admin/SortOrder";
 import type { ModifierOption, ModifierTemplate } from "@/types";
 
 const blankOption = (): ModifierOption => ({ id: crypto.randomUUID(), name: "", priceDelta: 0 });
@@ -61,7 +62,7 @@ export class ModifierDraft {
       id: this.data.id || newId,
       sortOrder: this.data.id
         ? existing.find((item) => item.id === this.data.id)?.sortOrder || 0
-        : existing.length + 1,
+        : SortOrder.next(existing),
       options: this.data.options
         .filter((option) => option.name.trim())
         .map((option) => ({ ...option, id: option.id || crypto.randomUUID() }))

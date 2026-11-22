@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { User } from "firebase/auth";
 
-import { orderApi } from "@/infrastructure";
+import { adminApi, orderApi } from "@/infrastructure";
 import { requestPushToken } from "@/lib/pwa/notifications";
 import type { Notify } from "@/features/admin/hooks/useAdminNotices";
 
@@ -69,5 +69,16 @@ export function useAdminPush(currentUser: User | null, notify: Notify) {
     }
   }
 
-  return { permission, enable, test };
+  /** Al cerrar sesión: este dispositivo deja de recibir avisos con datos de clientes. */
+  async function forgetDevice() {
+    try {
+      const registration = await navigator.serviceWorker?.getRegistration();
+      const subscription = await registration?.pushManager.getSubscription();
+      if (subscription) await adminApi.forgetPushToken(JSON.stringify(subscription.toJSON()));
+    } catch {
+      // Si falla (sin internet), el servidor la borrará cuando deje de funcionar.
+    }
+  }
+
+  return { permission, enable, test, forgetDevice };
 }

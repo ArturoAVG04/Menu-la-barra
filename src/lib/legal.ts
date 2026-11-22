@@ -1,5 +1,5 @@
 // Datos legales del negocio. Si cambias el aviso o los términos, sube LEGAL_VERSION.
-export const LEGAL_VERSION = "2026-11-07";
+export const LEGAL_VERSION = "2026-11-21";
 
 export const LEGAL_OWNER = {
   businessName: "La Barra",

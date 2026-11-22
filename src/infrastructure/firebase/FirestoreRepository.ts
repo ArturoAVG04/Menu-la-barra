@@ -21,3 +21,8 @@ export abstract class FirestoreRepository {
 }
 
 export type Unsubscribe = () => void;
+
+/** Qué hacer si una escucha en tiempo real falla (p. ej. sesión vencida o sin permiso). */
+export type ListenError = (error: Error) => void;
+
+export const logListenError: ListenError = (error) => console.error("Error al escuchar Firestore:", error);

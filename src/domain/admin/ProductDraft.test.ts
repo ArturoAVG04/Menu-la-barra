@@ -79,14 +79,14 @@ describe("ProductDraft", () => {
     expect(draft.with({ sortOrder: 7 }).toProduct({ branchId: "b1", catalog }).sortOrder).toBe(7);
   });
 
-  it("genera una copia por sucursal elegida", () => {
-    const copies = ProductDraft.empty("b1")
+  it("guarda las sucursales elegidas en el producto", () => {
+    const product = ProductDraft.empty("b1")
       .toggleBranch("b2", true)
       .with({ name: "Papas", categoryId: "c1" })
-      .toBranchCopies({ branchId: "b1", catalog: [], newId: "x" });
+      .toProduct({ branchId: "b1", catalog: [], newId: "x" });
 
-    expect(copies.map((copy) => copy.sucursalID)).toEqual(["b1", "b2"]);
-    expect(copies.every((copy) => copy.id === "x")).toBe(true);
+    expect(product.branchIds).toEqual(["b1", "b2"]);
+    expect(product.id).toBe("x");
   });
 
   it("la vista previa rellena textos vacíos", () => {

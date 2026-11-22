@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { isFirebaseAdminConfigured } from "@/lib/firebase/admin";
-import { getOrderIfTokenMatches, saveOrderNotificationToken } from "@/lib/server/notifications";
+import { getOrderIfTokenMatches, InvalidSubscriptionError, saveOrderNotificationToken } from "@/lib/server/notifications";
 
 type RouteContext = {
   params: Promise<{
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     | { token?: string; branchId?: string; trackingToken?: string }
     | null;
 
-  if (!orderId || !body?.token || !body.branchId || !body.trackingToken) {
+  if (!orderId || typeof body?.token !== "string" || typeof body.branchId !== "string" || typeof body.trackingToken !== "string") {
     return NextResponse.json(
       { error: "orderId, token, branchId y trackingToken son obligatorios" },
       { status: 400 }
@@ -35,6 +35,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 });
   }
 
-  await saveOrderNotificationToken(orderId, body.token, body.branchId);
+  try {
+    await saveOrderNotificationToken(orderId, body.token, body.branchId);
+  } catch (error) {
+    if (error instanceof InvalidSubscriptionError) return NextResponse.json({ error: error.message }, { status: 400 });
+    throw error;
+  }
   return NextResponse.json({ ok: true });
 }

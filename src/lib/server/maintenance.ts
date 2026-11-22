@@ -5,10 +5,9 @@ const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 export async function deleteExpiredOrders() {
   const cutoffTimestamp = Date.now() - THREE_DAYS_MS;
   const ordersCollection = adminDb().collection("orders");
-  const expiredSnapshot = await ordersCollection
-    .where("status", "in", ["delivered", "rejected"])
-    .where("createdAt", "<=", cutoffTimestamp)
-    .get();
+  // Todos los pedidos de hace más de 3 días, en cualquier estado (así lo dice el aviso de privacidad:
+  // antes los que se quedaban en "nuevo" o "en cocina" se guardaban para siempre con nombre y teléfono).
+  const expiredSnapshot = await ordersCollection.where("createdAt", "<=", cutoffTimestamp).get();
 
   if (expiredSnapshot.empty) {
     return {

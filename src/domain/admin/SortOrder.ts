@@ -7,6 +7,12 @@ export class SortOrder {
     return [...items].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   }
 
+  /** Número para uno nuevo al final: el mayor + 1 (no la cantidad: si borraste uno se repetiría). */
+  static next(items: readonly { sortOrder?: number }[]): number {
+    // También cuenta cuántos hay, por si algunos viejos no tienen número.
+    return items.reduce((max, item) => Math.max(max, item.sortOrder ?? 0), items.length) + 1;
+  }
+
   /**
    * Mueve un elemento una posición arriba o abajo y renumera todos (1, 2, 3…).
    * Devuelve `null` si no se puede mover (no existe o ya está en la orilla).

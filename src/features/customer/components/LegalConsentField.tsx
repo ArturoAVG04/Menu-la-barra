@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { LEGAL_OWNER } from "@/lib/legal";
+
 type LegalConsentFieldProps = {
   accepted: boolean;
   showError: boolean;
@@ -32,7 +34,8 @@ export function LegalConsentField({ accepted, showError, onChange }: LegalConsen
         <Link href="/terminos" target="_blank" className="font-semibold text-brand underline">
           Términos y condiciones
         </Link>
-        . Usaremos tu nombre y teléfono solo para atender tu pedido; se borran a los 3 días.
+        . {LEGAL_OWNER.ownerName} ({LEGAL_OWNER.businessName}) usará tu nombre y teléfono solo para tu pedido; no
+        los compartimos y se borran a los 3 días (o antes si nos lo pides por WhatsApp).
         {highlight && (
           <span className="mt-1 block font-semibold text-brand">Debes aceptar para enviar tu pedido.</span>
         )}

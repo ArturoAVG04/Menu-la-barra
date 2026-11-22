@@ -34,9 +34,12 @@ export default function TerminosPage() {
 
       <h2>2. Precios y pagos</h2>
       <ul>
-        <li>Los precios están en pesos mexicanos y son los que se muestran en el menú al momento de pedir.</li>
+        <li>
+          Los precios están en pesos mexicanos, ya incluyen impuestos y son los que se muestran en el menú al
+          momento de pedir. No hay cargos extra: el total que ves antes de enviar es el que pagas.
+        </li>
         <li>El pago se hace al recibir o recoger el pedido, en efectivo o con tarjeta en terminal física.</li>
-        <li>La propina es voluntaria y puedes elegir 0 %.</li>
+        <li>La propina es voluntaria: empieza en 0 % y tú decides si la agregas.</li>
         <li>Los precios en aplicaciones de reparto (Uber Eats, Rappi, DiDi) pueden ser distintos a los de este menú.</li>
       </ul>
 

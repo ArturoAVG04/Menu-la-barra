@@ -1,3 +1,4 @@
+import { SortOrder } from "@/domain/admin/SortOrder";
 import type { Product, ProductModifier } from "@/types";
 
 const EMPTY_PRODUCT: Product = {
@@ -117,14 +118,8 @@ export class ProductDraft {
       id: this.data.id || newId,
       sucursalID: branchId,
       branchIds: this.targetBranchIds(branchId),
-      sortOrder: typeof sortOrder === "number" && sortOrder > 0 ? sortOrder : siblings.length + 1,
+      sortOrder: typeof sortOrder === "number" && sortOrder > 0 ? sortOrder : SortOrder.next(siblings),
       salePrice: this.salePrice
     };
-  }
-
-  /** Una copia del producto por cada sucursal elegida (cada una con su `sucursalID`). */
-  toBranchCopies(context: SaveContext): Product[] {
-    const product = this.toProduct(context);
-    return (product.branchIds ?? []).map((branchId) => ({ ...product, sucursalID: branchId }));
   }
 }

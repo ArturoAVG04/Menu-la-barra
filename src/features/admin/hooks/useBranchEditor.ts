@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { BranchFactory } from "@/domain/branch/BranchFactory";
 import { DEFAULT_ORDER_SETTINGS } from "@/domain/order/OrderStatus";
@@ -16,20 +16,31 @@ type SlotUpdater = (slot: NormalizedWeeklyHoursSlot) => NormalizedWeeklyHoursSlo
 export function useBranchEditor(selectedBranch: Branch | null, branches: Branch[], notify: Notify) {
   const [editor, setEditor] = useState<Branch | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // ¿Hay cambios sin guardar? Si sí, una actualización que llega de otro dispositivo no borra lo que escribes.
+  const dirty = useRef(false);
+  const loadedId = useRef<string | null>(null);
 
-  // Cada vez que cambia la sucursal (o llega una versión nueva de Firestore) se recarga el formulario.
   useEffect(() => {
+    const changedBranch = (selectedBranch?.id ?? null) !== loadedId.current;
+    if (!changedBranch && dirty.current) return;
+    loadedId.current = selectedBranch?.id ?? null;
+    dirty.current = false;
     setEditor(
       selectedBranch ? { ...selectedBranch, weeklyHours: normalizeWeeklyHours(selectedBranch.weeklyHours) } : null
     );
   }, [selectedBranch]);
 
+  const edit: typeof setEditor = (value) => {
+    dirty.current = true;
+    setEditor(value);
+  };
+
   function update(patch: Partial<Branch>) {
-    setEditor((current) => (current ? { ...current, ...patch } : current));
+    edit((current) => (current ? { ...current, ...patch } : current));
   }
 
   function setOrderSetting(key: keyof OrderSettings, value: number) {
-    setEditor((current) =>
+    edit((current) =>
       current
         ? {
             ...current,
@@ -40,7 +51,7 @@ export function useBranchEditor(selectedBranch: Branch | null, branches: Branch[
   }
 
   function updateSlot(slotIndex: number, updater: SlotUpdater) {
-    setEditor((current) =>
+    edit((current) =>
       current
         ? {
             ...current,
@@ -69,7 +80,7 @@ export function useBranchEditor(selectedBranch: Branch | null, branches: Branch[
   }
 
   function addSlot() {
-    setEditor((current) =>
+    edit((current) =>
       current
         ? {
             ...current,
@@ -80,7 +91,7 @@ export function useBranchEditor(selectedBranch: Branch | null, branches: Branch[
   }
 
   function removeSlot(slotIndex: number) {
-    setEditor((current) => {
+    edit((current) => {
       if (!current) return current;
       const nextSlots = normalizeWeeklyHours(current.weeklyHours).filter((_, index) => index !== slotIndex);
       return { ...current, weeklyHours: nextSlots.length ? nextSlots : defaultWeeklyHours() };
@@ -97,7 +108,10 @@ export function useBranchEditor(selectedBranch: Branch | null, branches: Branch[
         await Promise.all(BranchFactory.demoteOthers(branches, editor.id).map((branch) => branchRepository.save(branch)));
       }
       await branchRepository.save(editor);
+      dirty.current = false;
       notify("Cambios guardados");
+    } catch (error) {
+      notify(error instanceof Error ? `No se pudo guardar: ${error.message}` : "No se pudo guardar");
     } finally {
       setIsSaving(false);
     }

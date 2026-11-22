@@ -1,4 +1,5 @@
 import { db } from "@/lib/firebase/config";
+import { AdminApiClient } from "@/infrastructure/api/AdminApiClient";
 import { OrderApiClient } from "@/infrastructure/api/OrderApiClient";
 import { BranchRepository } from "@/infrastructure/firebase/BranchRepository";
 import { CatalogRepository } from "@/infrastructure/firebase/CatalogRepository";
@@ -12,5 +13,6 @@ export const branchRepository = new BranchRepository(db);
 export const catalogRepository = new CatalogRepository(db);
 export const orderRepository = new OrderRepository(db);
 export const orderApi = new OrderApiClient();
+export const adminApi = new AdminApiClient();
 
 export type { CreateOrderInput, OrderStatusUpdate } from "@/infrastructure/api/OrderApiClient";
