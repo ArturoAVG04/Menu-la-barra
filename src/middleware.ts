@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { ADMIN_HOST, ADMIN_URL, MENU_HOST, MENU_URL } from "@/lib/hosts";
+import { ADMIN_HOST, ADMIN_URL, LINK_HOST, MENU_HOST, MENU_URL } from "@/lib/hosts";
 
 // Rutas que funcionan igual en ambas direcciones (legales, assets, API).
 const SHARED_PREFIXES = ["/api", "/privacidad", "/terminos", "/manifest", "/icons", "/icon.svg", "/sw.js"];
@@ -8,6 +8,12 @@ const SHARED_PREFIXES = ["/api", "/privacidad", "/terminos", "/manifest", "/icon
 export function middleware(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   const { pathname, search } = request.nextUrl;
+
+  // Dirección de ligas editables: "/" usa el enlace "emprende"; "/otro" usa el enlace "otro".
+  if (host === LINK_HOST && !pathname.startsWith("/ir/")) {
+    const slug = pathname.split("/")[1] || "emprende";
+    return NextResponse.rewrite(new URL(`/ir/${slug}`, request.url));
+  }
 
   if (SHARED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return NextResponse.next();
