@@ -1,4 +1,4 @@
-// Reescribe las descripciones del menú (2026-11-25). Respaldo previo: second-brain/03-la-barra/respaldo-productos-2026-11-25.json
+// Reescribe las descripciones del menú (2026-11-25). Respaldo previo: second-brain/03-la-barra/datos/respaldo-productos-2026-11-25.json
 // Uso: node --env-file=.env.local scripts/descripciones-2026-11-25.cjs [--aplicar]
 const path = require('path');
 const { cert, initializeApp } = require(path.join(process.cwd(), 'node_modules/firebase-admin/lib/app'));

@@ -1,4 +1,4 @@
-// Corrige nombres de personalizaciones (Elije→Elige, Coca-Cola 400 ml, espacios). Respaldo: second-brain/03-la-barra/respaldo-productos-2026-11-25.json
+// Corrige nombres de personalizaciones (Elije→Elige, Coca-Cola 400 ml, espacios). Respaldo: second-brain/03-la-barra/datos/respaldo-productos-2026-11-25.json
 const path = require('path');
 const { cert, initializeApp } = require(path.join(process.cwd(), 'node_modules/firebase-admin/lib/app'));
 const { getFirestore } = require(path.join(process.cwd(), 'node_modules/firebase-admin/lib/firestore'));
