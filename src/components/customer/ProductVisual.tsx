@@ -88,7 +88,7 @@ export function ProductImagePlaceholder({
           <Icon size={compact ? 36 : 44} strokeWidth={1.8} />
         </div>
         {initials && (
-          <span className="text-xs font-bold uppercase tracking-wide opacity-70">
+          <span className="text-sm font-bold uppercase tracking-wide opacity-70">
             {initials}
           </span>
         )}

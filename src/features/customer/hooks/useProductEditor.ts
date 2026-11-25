@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import type { Cart } from "@/domain/cart/Cart";
 import type { MenuCatalog } from "@/domain/menu/MenuCatalog";
@@ -23,6 +23,8 @@ export function useProductEditor(catalog: MenuCatalog, cart: Cart, callbacks: Ed
   const [target, setTarget] = useState<EditorTarget | null>(null);
   const [draft, setDraft] = useState<ProductSelection | null>(null);
   const [error, setError] = useState("");
+  // Evita que un doble toque en "Agregar" meta el producto dos veces.
+  const savedRef = useRef(false);
 
   const editingCartItem = target?.cartItemId ? cart.find(target.cartItemId) : null;
   const liveProduct = useMemo(
@@ -38,6 +40,7 @@ export function useProductEditor(catalog: MenuCatalog, cart: Cart, callbacks: Ed
     const menuProduct = catalog.findProduct(product.id);
     if (!menuProduct) return;
     setTarget({ productId: product.id, cartItemId: null });
+    savedRef.current = false;
     setDraft(ProductSelection.start(menuProduct));
     setError("");
   }
@@ -48,6 +51,7 @@ export function useProductEditor(catalog: MenuCatalog, cart: Cart, callbacks: Ed
     const menuProduct = item ? catalog.findProduct(item.productId) : null;
     if (!item || !menuProduct) return;
     setTarget({ productId: item.productId, cartItemId });
+    savedRef.current = false;
     setDraft(ProductSelection.fromCartItem(menuProduct, item));
     setError(message);
   }
@@ -68,7 +72,7 @@ export function useProductEditor(catalog: MenuCatalog, cart: Cart, callbacks: Ed
   }
 
   function save() {
-    if (!selection) return;
+    if (!selection || savedRef.current) return;
 
     const missing = selection.missingRequired();
     if (missing) {
@@ -76,6 +80,7 @@ export function useProductEditor(catalog: MenuCatalog, cart: Cart, callbacks: Ed
       return;
     }
 
+    savedRef.current = true;
     if (editingCartItem) {
       callbacks.onReplace(selection.applyTo(editingCartItem));
     } else {

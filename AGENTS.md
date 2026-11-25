@@ -133,3 +133,19 @@ Menú digital de La Barra con pedidos, seguimiento, panel de admin y notificacio
 
 ### 2026-11-22 · SEO: "snacks" en lugar de "burritos" + Facebook — Claude
 - Los burritos solo se venden en la Uni: Arturo no quiere que se anuncien en Google. Los textos SEO, el JSON-LD y la imagen OG ahora dicen "hamburguesas, alitas y snacks". Se agregó `FACEBOOK_URL` (facebook.com/la.barra.guanajuato) a `sameAs`.
+
+### 2026-11-25 · QR escolar apuntando al video final — Claude
+- `enlaces/emprende` → `https://youtu.be/p-Zjg7oRYLs` (entrevista editada). Verificado: emprende-hoy.vercel.app responde 307 al video.
+- Cómo cambiar un enlace sin consola: `node --env-file=.env.local scripts-enlace.cjs <slug> <url>` (usa firebase-admin con las credenciales de `.env.local`; no subir a git si cambia a leer secretos de otra forma).
+
+## 2026-11-25 · Medición de legibilidad (sin cambios en el código) — Claude
+- `node ~/second-brain/herramientas/auditor/medir-legibilidad.mjs https://menulabarra.vercel.app` → descripciones de 12 px (line-height 1.25), input del buscador de 14 px (zoom en iPhone), precios de 14 px con contraste 4.35:1, ligas del pie de 14 px de alto, categorías de 42 px, y con la letra al 200 %: scroll de lado (519 px) y 26 textos cortados. Las reglas están en `~/second-brain/herramientas/auditor/LEGIBILIDAD.md`.
+
+## 2026-11-25 · Legibilidad, descripciones y arreglos de auditoría (piloto + auditor) — Claude
+- Tipografía por defecto: fuente del sistema (estilo iPhone) en lugar de serif (`useBranchBranding`, default `sans`; el admin aún puede elegir serif). `body` con line-height 1.5 y `overflow-wrap:anywhere` (ya no hay scroll de lado con la letra al 200 %).
+- Cliente: text-xs→text-sm y text-sm→text-base (salvo etiquetas en mayúsculas), botones de 44 px como mínimo, buscador de 16 px y 48 px de alto, ligas legales de 44 px, tarjetas con nombre de 16/18 px, descripción de 15 px (3 líneas) y precio de 18 px en color de texto. Precios sin ".00" (`currency`). `scroll-mt-24` para que las pestañas no tapen el título de la sección.
+- Marca: `RgbColor.readableOnWhite` oscurece lo mínimo el color principal para llegar a un contraste de 4.5:1 (el rojo 242 7 19 daba 4.35). Tiene pruebas.
+- Arreglos de la auditoría: el doble toque en "Agregar" ya no duplica (`savedRef`); el aviso de opción obligatoria se lleva a la vista; "Vaciar carrito" pide confirmación y quedó como liga abajo del botón de enviar; los campos del formulario tienen etiquetas visibles; "1 producto / N productos"; aviso arriba cuando la sucursal está cerrada; encabezado con capa más oscura; botones de WhatsApp e Instagram de 48 px.
+- Firestore: 19 descripciones nuevas (`scripts/descripciones-2026-11-25.cjs`) y nombres de opciones corregidos: Elije→Elige, "Coca-Cola 400 ml", sin espacios sobrantes (`scripts/nombres-opciones-2026-11-25.cjs`). Respaldo previo en `second-brain/03-la-barra/respaldo-productos-2026-11-25.json` (`scripts/respaldo-productos.cjs`).
+- Nueva guía `AUDITORIA.md`: prohíbe enviar pedidos reales al probar.
+- Pendiente: confirmar con Arturo qué incluyen los combos 2 y 3, decir cómo se paga y entrega, poner fotos a los productos de Presa y revisar "AD" en la imagen de horchata.

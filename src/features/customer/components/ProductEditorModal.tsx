@@ -26,6 +26,12 @@ export function ProductEditorModal(props: ProductEditorModalProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   useEscapeKey(props.onClose);
 
+  const errorRef = useRef<HTMLParagraphElement | null>(null);
+  // Si falta una opción obligatoria, el aviso se lleva a la vista (si no, queda abajo y nadie lo ve).
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [error]);
+
   // Al abrir otro producto, el panel vuelve arriba.
   useEffect(() => {
     panelRef.current?.scrollTo({ top: 0, behavior: "auto" });
@@ -44,7 +50,7 @@ export function ProductEditorModal(props: ProductEditorModalProps) {
             <button
               type="button"
               onClick={props.onClose}
-              className="absolute right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/65 text-white backdrop-blur-md transition hover:bg-black/80 active:scale-95 shadow-glow"
+              className="absolute right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/65 text-white backdrop-blur-md transition hover:bg-black/80 active:scale-95 shadow-glow"
               aria-label="Cerrar edición del producto"
             >
               <X size={18} />
@@ -53,7 +59,7 @@ export function ProductEditorModal(props: ProductEditorModalProps) {
 
           <div className="p-5 md:p-6 -mt-6 relative z-10">
             <h3 className="text-2xl font-bold text-text">{product.name}</h3>
-            <p className="mt-1.5 text-sm text-muted leading-relaxed">{product.description ?? ""}</p>
+            <p className="mt-1.5 text-base text-muted leading-relaxed">{product.description ?? ""}</p>
             <p className="mt-3 text-base font-bold text-brand">Base {currency(selection.basePrice)}</p>
           </div>
 
@@ -75,7 +81,7 @@ export function ProductEditorModal(props: ProductEditorModalProps) {
                     type="button"
                     onClick={() => props.onChangeQuantity(-1)}
                     aria-label="Quitar uno"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-text"
                   >
                     <Minus size={16} />
                   </button>
@@ -84,13 +90,13 @@ export function ProductEditorModal(props: ProductEditorModalProps) {
                     type="button"
                     onClick={() => props.onChangeQuantity(1)}
                     aria-label="Agregar uno"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-text"
                   >
                     <Plus size={16} />
                   </button>
                 </div>
               </div>
-              <div className="mt-6 space-y-2 rounded-card bg-surface/50 px-4 py-4 text-sm text-text border border-line/50">
+              <div className="mt-6 space-y-2 rounded-card bg-surface/50 px-4 py-4 text-base text-text border border-line/50">
                 <div className="flex items-center justify-between">
                   <span className="text-muted">Extras</span>
                   <span className="font-medium text-text">{currency(selection.extrasTotal)}</span>
@@ -103,7 +109,11 @@ export function ProductEditorModal(props: ProductEditorModalProps) {
             </div>
           </div>
 
-          {error && <p className="mt-4 text-sm font-medium text-danger">{error}</p>}
+          {error && (
+            <p ref={errorRef} role="alert" className="mt-4 rounded-card border border-danger/40 bg-danger/10 px-4 py-3 text-base font-semibold text-danger">
+              ⚠️ {error}
+            </p>
+          )}
 
           <div className="mt-6 flex">
             <button

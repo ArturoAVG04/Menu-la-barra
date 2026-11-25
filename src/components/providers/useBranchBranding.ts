@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { isPlainObject, readStoredJson, useMountLayoutEffect, writeStoredJson } from "@/components/providers/storage";
+import { RgbColor } from "@/domain/branding/RgbColor";
 import { branchRepository } from "@/infrastructure";
 import type { BrandingSettings } from "@/types";
 
@@ -10,7 +11,7 @@ export const defaultBranding: BrandingSettings = {
   primaryRgb: "55 101 94",
   accentRgb: "180 140 92",
   shape: "rounded",
-  fontFamily: "serif"
+  fontFamily: "sans"
 };
 
 const brandingKey = (branchId: string) => `la-barra-branding:${branchId}`;
@@ -25,14 +26,15 @@ function applyBranding(branding: BrandingSettings) {
   const root = document.documentElement;
   const card = branding.shape === "pill" ? "999px" : branding.shape === "rounded" ? "1.5rem" : "0.375rem";
   const shell = branding.shape === "square" ? "0.5rem" : "2rem";
-  root.style.setProperty("--brand", branding.primaryRgb);
+  // Se oscurece lo mínimo para que el texto blanco sobre la marca y los precios en color se lean (WCAG 4.5:1).
+  root.style.setProperty("--brand", RgbColor.readableOnWhite(branding.primaryRgb));
   root.style.setProperty("--accent", branding.accentRgb);
   root.style.setProperty("--radius-card", card);
   root.style.setProperty("--radius-shell", shell);
   root.style.setProperty(
     "--app-font",
     branding.fontFamily === "sans"
-      ? '"Inter", "Segoe UI", Helvetica, Arial, sans-serif'
+      ? '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
       : '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif'
   );
 }

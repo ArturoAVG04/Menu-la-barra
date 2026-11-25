@@ -17,9 +17,9 @@ export function TipSelector({ cart, tipPercent, onChange }: TipSelectorProps) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="font-semibold text-text">Propina</p>
-          <p className="text-sm text-muted">Opcional</p>
+          <p className="text-base text-muted">Opcional</p>
         </div>
-        <span className="rounded-full bg-brand/10 px-3 py-1 text-sm font-semibold text-brand">{tipPercent}%</span>
+        <span className="rounded-full bg-brand/10 px-3 py-1 text-base font-semibold text-brand">{tipPercent}%</span>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -29,7 +29,7 @@ export function TipSelector({ cart, tipPercent, onChange }: TipSelectorProps) {
             type="button"
             onClick={() => onChange(preset)}
             className={[
-              "inline-flex min-h-10 items-center justify-center rounded-full px-4 py-2 text-sm font-semibold",
+              "inline-flex min-h-11 items-center justify-center rounded-full px-4 py-2 text-base font-semibold",
               tipPercent === preset ? "bg-brand text-white" : "border border-line text-text"
             ].join(" ")}
           >
@@ -49,7 +49,7 @@ export function TipSelector({ cart, tipPercent, onChange }: TipSelectorProps) {
         className="mt-4 w-full accent-[rgb(var(--brand))]"
       />
 
-      <div className="mt-4 space-y-2 text-sm text-text">
+      <div className="mt-4 space-y-2 text-base text-text">
         <div className="flex items-center justify-between">
           <span>Subtotal</span>
           <span>{currency(cart.subtotal)}</span>

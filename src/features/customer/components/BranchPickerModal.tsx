@@ -25,7 +25,7 @@ export function BranchPickerModal({ branches, activeBranchId, now, onSelect, onC
             <div>
               <p className="text-sm uppercase tracking-[0.25em] text-brand">Sucursales</p>
               <h2 id="branch-picker-title" className="mt-2 text-2xl font-semibold text-text">Selecciona tu sucursal</h2>
-              <p className="mt-2 text-center text-sm text-muted md:text-left">
+              <p className="mt-2 text-center text-base text-muted md:text-left">
                 Tu carrito se mantiene separado por sucursal para que no se mezclen pedidos.
               </p>
             </div>
@@ -69,11 +69,11 @@ export function BranchPickerModal({ branches, activeBranchId, now, onSelect, onC
                   >
                     <div className="flex h-full flex-col justify-between gap-4">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                        <span className="rounded-full bg-white/15 px-3 py-1 text-sm font-semibold uppercase tracking-wide text-white">
                           {isBranchOpenAt(branch, now) ? "Abierta" : "Cerrada"}
                         </span>
                         {branch.isPrimary && (
-                          <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                          <span className="rounded-full bg-white/15 px-3 py-1 text-sm font-semibold uppercase tracking-wide text-white">
                             Principal
                           </span>
                         )}
@@ -81,7 +81,7 @@ export function BranchPickerModal({ branches, activeBranchId, now, onSelect, onC
 
                       <div>
                         <p className="text-xl font-semibold text-white">{branch.name}</p>
-                        <p className="mt-2 text-sm text-white/80">{branch.address}</p>
+                        <p className="mt-2 text-base text-white/80">{branch.address}</p>
                       </div>
                     </div>
                   </div>

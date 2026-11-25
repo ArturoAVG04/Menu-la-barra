@@ -31,7 +31,7 @@ export function CartDrawer(props: CartDrawerProps) {
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line px-4 py-3 text-base font-semibold text-text"
             >
               <ArrowLeft size={16} />
               Volver
@@ -39,8 +39,8 @@ export function CartDrawer(props: CartDrawerProps) {
 
             <div className="text-right">
               <p className="font-semibold text-text">Tu pedido</p>
-              <p className="text-sm text-muted">
-                {cart.itemCount} items · {currency(cart.subtotal)}
+              <p className="text-base text-muted">
+                {cart.itemCount} {cart.itemCount === 1 ? "producto" : "productos"} · {currency(cart.subtotal)}
               </p>
             </div>
           </div>

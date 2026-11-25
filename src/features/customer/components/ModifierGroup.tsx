@@ -14,7 +14,7 @@ export function ModifierGroup({ modifier, isSelected, onToggle }: ModifierGroupP
       <div className="flex items-center justify-between gap-3">
         <p className="font-medium text-text">{modifier.name}</p>
         {modifier.isRequired && (
-          <span className="text-xs font-bold uppercase tracking-wide text-brand">Obligatorio</span>
+          <span className="text-sm font-bold uppercase tracking-wide text-brand">Obligatorio</span>
         )}
       </div>
 
@@ -22,7 +22,7 @@ export function ModifierGroup({ modifier, isSelected, onToggle }: ModifierGroupP
         {modifier.options.map((option) => (
           <label
             key={option.id}
-            className="flex items-center justify-between gap-3 rounded-card border border-line px-3 py-3 text-sm text-text"
+            className="flex items-center justify-between gap-3 rounded-card border border-line px-3 py-3 text-base text-text"
           >
             <div className="flex items-center gap-3">
               <input
@@ -30,7 +30,7 @@ export function ModifierGroup({ modifier, isSelected, onToggle }: ModifierGroupP
                 name={`modifier-${modifier.id}`}
                 checked={isSelected(option.id)}
                 onChange={() => onToggle(option.id)}
-                className="h-4 w-4 accent-[rgb(var(--brand))]"
+                className="h-5 w-5 accent-[rgb(var(--brand))]"
               />
               <span>{option.name}</span>
             </div>

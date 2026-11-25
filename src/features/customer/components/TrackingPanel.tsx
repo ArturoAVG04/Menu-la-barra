@@ -45,7 +45,7 @@ export function TrackingPanel(props: TrackingPanelProps) {
 
           <div className="mt-5 space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-brand/10 px-3 py-2 text-sm font-semibold text-brand">
+              <span className="rounded-full bg-brand/10 px-3 py-2 text-base font-semibold text-brand">
                 Pedido {OrderLifecycle.shortCode(order.id)}
               </span>
               {OrderLifecycle.suggestsWhatsappTicket(order.status) && props.whatsappTicketHref && (
@@ -53,7 +53,7 @@ export function TrackingPanel(props: TrackingPanelProps) {
                   href={props.whatsappTicketHref}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-4 py-3 text-sm font-semibold text-white"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-4 py-3 text-base font-semibold text-white"
                 >
                   <MessageCircle size={16} />
                   Enviar ticket al restaurante
@@ -67,13 +67,13 @@ export function TrackingPanel(props: TrackingPanelProps) {
 
             {order.statusMessage && (
               <div className="rounded-card border border-line bg-surface p-4">
-                <p className="text-center text-sm text-text">{order.statusMessage}</p>
+                <p className="text-center text-base text-text">{order.statusMessage}</p>
               </div>
             )}
 
             {countdownLabel && (
               <div className="rounded-card border border-brand/30 bg-brand/10 p-4">
-                <p className="text-center text-sm font-semibold text-brand">{countdownLabel}</p>
+                <p className="text-center text-base font-semibold text-brand">{countdownLabel}</p>
               </div>
             )}
 
@@ -85,14 +85,14 @@ export function TrackingPanel(props: TrackingPanelProps) {
                 <button
                   type="button"
                   onClick={props.onDismissRejected}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-line px-4 py-3 text-center text-sm font-semibold text-text"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-line px-4 py-3 text-center text-base font-semibold text-text"
                 >
                   Borrar
                 </button>
                 <button
                   type="button"
                   onClick={props.onRetryRejected}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-brand px-4 py-3 text-center text-sm font-semibold text-white"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-brand px-4 py-3 text-center text-base font-semibold text-white"
                 >
                   Volver a pedir
                 </button>

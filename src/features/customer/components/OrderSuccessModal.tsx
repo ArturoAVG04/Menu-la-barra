@@ -28,7 +28,7 @@ export function OrderSuccessModal({ message, whatsappHref, onContinue }: OrderSu
             <h3 id="order-success-title" className="text-2xl font-semibold text-text">
               Pedido enviado
             </h3>
-            <p className="mt-2 text-sm text-muted">{message}</p>
+            <p className="mt-2 text-base text-muted">{message}</p>
           </div>
           <div className="mt-6 flex justify-center">
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -37,7 +37,7 @@ export function OrderSuccessModal({ message, whatsappHref, onContinue }: OrderSu
                   href={whatsappHref}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-5 py-3 text-sm font-semibold text-white"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366] px-5 py-3 text-base font-semibold text-white"
                 >
                   <MessageCircle size={16} />
                   Enviar ticket por WhatsApp
@@ -46,7 +46,7 @@ export function OrderSuccessModal({ message, whatsappHref, onContinue }: OrderSu
               <button
                 type="button"
                 onClick={onContinue}
-                className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 py-3 text-base font-semibold text-white"
               >
                 Seguir explorando
               </button>

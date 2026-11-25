@@ -8,7 +8,7 @@ export function CategoryTabs({ categories }: { categories: readonly Category[] }
         <a
           key={category.id}
           href={`#category-${category.id}`}
-          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-card border border-line bg-panel px-4 py-2.5 text-center text-sm font-semibold text-text transition hover:border-brand/40 hover:bg-brand/5"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-card border border-line bg-panel px-4 py-2.5 text-center text-base font-semibold text-text transition hover:border-brand/40 hover:bg-brand/5"
         >
           {category.name}
         </a>

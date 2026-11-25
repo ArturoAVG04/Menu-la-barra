@@ -31,7 +31,7 @@ export function TrackingSteps({ status }: { status: OrderStatus }) {
               >
                 <Icon size={16} />
               </div>
-              <p className="text-xs md:text-sm font-semibold text-text">{label}</p>
+              <p className="text-sm md:text-base font-semibold text-text">{label}</p>
             </div>
           </div>
         );

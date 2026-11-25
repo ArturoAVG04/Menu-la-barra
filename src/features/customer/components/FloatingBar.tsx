@@ -31,21 +31,21 @@ export function FloatingBar(props: FloatingBarProps) {
           className="flex w-full items-center justify-between rounded-full border-2 border-surface/30 bg-brand px-5 py-3.5 text-left text-surface shadow-glow md:ml-auto md:max-w-md transition hover:brightness-110 active:scale-[0.98]"
         >
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-brand shadow-glow">
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface text-brand shadow-glow">
               <Clock3 size={20} className="animate-pulse" />
               <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-accent ring-2 ring-brand" />
             </div>
             <div className="min-w-0">
-              <p className="font-bold text-surface text-sm truncate">
+              <p className="font-bold text-surface text-base truncate">
                 Pedido {OrderLifecycle.shortCode(activeOrder.id)}
               </p>
-              <p className="text-xs font-semibold text-surface/80 truncate">
+              <p className="text-sm font-semibold text-surface/80 truncate">
                 {OrderLifecycle.label(activeOrder.status)}
                 {countdownLabel ? ` · ${countdownLabel}` : ""}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-xs font-bold text-surface shrink-0 pl-2">
+          <div className="flex items-center gap-1 text-sm font-bold text-surface shrink-0 pl-2">
             <span>Ver detalle</span>
             <ChevronRight size={16} />
           </div>
@@ -63,8 +63,8 @@ export function FloatingBar(props: FloatingBarProps) {
               </div>
               <div>
                 <p className="font-semibold text-text">Tu carrito</p>
-                <p className="text-sm text-muted">
-                  {cart.itemCount} items · {currency(cart.subtotal)}
+                <p className="text-base text-muted">
+                  {cart.itemCount} {cart.itemCount === 1 ? "producto" : "productos"} · {currency(cart.subtotal)}
                 </p>
               </div>
             </div>

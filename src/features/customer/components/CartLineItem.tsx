@@ -22,19 +22,19 @@ export function CartLineItem({ item, unavailable, onRemove, onQuantityChange, on
         <div className="min-w-0">
           <p className="line-clamp-2 break-words font-semibold text-text">{item.name}</p>
           {item.selectedModifiers.length > 0 && (
-            <p className="mt-1 text-sm text-muted">{describeModifiers(item.selectedModifiers)}</p>
+            <p className="mt-1 text-base text-muted">{describeModifiers(item.selectedModifiers)}</p>
           )}
           {unavailable ? (
-            <p className="mt-2 text-sm font-semibold text-danger">Ya no disponible</p>
+            <p className="mt-2 text-base font-semibold text-danger">Ya no disponible</p>
           ) : (
-            <p className="mt-2 text-sm font-semibold text-brand">{currency(item.unitPrice)} c/u</p>
+            <p className="mt-2 text-base font-semibold text-brand">{currency(item.unitPrice)} c/u</p>
           )}
         </div>
 
         <button
           type="button"
           onClick={onRemove}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-text"
           aria-label={`Eliminar ${item.name}`}
         >
           <Trash2 size={16} />
@@ -48,7 +48,7 @@ export function CartLineItem({ item, unavailable, onRemove, onQuantityChange, on
               type="button"
               onClick={() => onQuantityChange(item.quantity - 1)}
               aria-label={`Quitar uno de ${item.name}`}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-text"
             >
               <Minus size={16} />
             </button>
@@ -58,7 +58,7 @@ export function CartLineItem({ item, unavailable, onRemove, onQuantityChange, on
               onClick={() => onQuantityChange(item.quantity + 1)}
               disabled={item.quantity >= MAX_LINE_QUANTITY}
               aria-label={`Agregar uno de ${item.name}`}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-text disabled:opacity-40"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-text disabled:opacity-40"
             >
               <Plus size={16} />
             </button>
@@ -68,7 +68,7 @@ export function CartLineItem({ item, unavailable, onRemove, onQuantityChange, on
             <button
               type="button"
               onClick={onEdit}
-              className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-sm font-semibold text-text"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-4 py-3 text-base font-semibold text-text"
             >
               Editar
             </button>

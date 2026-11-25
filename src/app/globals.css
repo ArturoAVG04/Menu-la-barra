@@ -38,6 +38,9 @@ html {
 
 body {
   margin: 0;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  overflow-wrap: anywhere;
   min-height: 100vh;
   background: linear-gradient(180deg, rgb(250 250 247), rgb(var(--surface)) 18rem);
   color: rgb(var(--text));

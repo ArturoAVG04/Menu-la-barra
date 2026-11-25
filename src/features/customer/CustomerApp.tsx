@@ -91,7 +91,7 @@ export function CustomerApp() {
 
   if (!activeBranch) {
     return (
-      <div className="rounded-shell border border-dashed border-line bg-panel p-6 text-sm text-muted">
+      <div className="rounded-shell border border-dashed border-line bg-panel p-6 text-base text-muted">
         Selecciona una sucursal para cargar el menú.
       </div>
     );
@@ -109,6 +109,11 @@ export function CustomerApp() {
         onSearchChange={setSearch}
         onChangeBranch={panels.openBranchPicker}
       />
+      {!branchOpen && (
+        <p role="status" className="rounded-card border border-danger/40 bg-danger/10 px-4 py-3 text-base font-semibold text-danger">
+          Esta sucursal está cerrada ahora. Puedes ver el menú, pero no recibe pedidos por el momento.
+        </p>
+      )}
       <CategoryTabs categories={catalog.categoriesWithProducts} />
       <ProductGrid sections={sections} isEmpty={!searchResults.length} onSelect={openProduct} />
       <LegalFooter />

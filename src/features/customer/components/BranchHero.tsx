@@ -25,7 +25,7 @@ export function BranchHero({ branch, logoUrl, isOpen, search, onSearchChange, on
         className="relative p-5 md:p-6"
         style={{
           backgroundImage: branch.menuCoverImageUrl
-            ? `linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.45)), url(${branch.menuCoverImageUrl})`
+            ? `linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.7)), url(${branch.menuCoverImageUrl})`
             : "linear-gradient(135deg, rgb(var(--brand) / 0.94), rgb(37 48 47 / 0.92))",
           backgroundSize: "cover",
           backgroundPosition: "center center"
@@ -48,21 +48,21 @@ export function BranchHero({ branch, logoUrl, isOpen, search, onSearchChange, on
 
                 <div>
                   <h2 className="mt-1 text-2xl font-semibold text-white md:text-3xl">{branch.name}</h2>
-                  {branch.address && <p className="mt-2 max-w-2xl text-sm text-white/80">{branch.address}</p>}
+                  {branch.address && <p className="mt-2 max-w-2xl text-base text-white">{branch.address}</p>}
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={[
-                    "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
-                    isOpen ? "bg-success/20 text-white" : "bg-danger/20 text-white"
+                    "rounded-full px-3 py-1 text-sm font-semibold uppercase tracking-wide",
+                    isOpen ? "bg-green-700 text-white" : "bg-red-700 text-white"
                   ].join(" ")}
                 >
                   {isOpen ? "Sucursal abierta" : "Sucursal cerrada"}
                 </span>
                 {branch.isPrimary && (
-                  <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                  <span className="rounded-full bg-black/50 px-3 py-1 text-sm font-semibold uppercase tracking-wide text-white">
                     Principal
                   </span>
                 )}
@@ -73,7 +73,7 @@ export function BranchHero({ branch, logoUrl, isOpen, search, onSearchChange, on
               <button
                 type="button"
                 onClick={onChangeBranch}
-                className="inline-flex min-h-11 items-center justify-center rounded-card border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white backdrop-blur"
+                className="inline-flex min-h-11 items-center justify-center rounded-card border border-white/20 bg-white/10 px-4 py-3 text-base font-semibold text-white backdrop-blur"
               >
                 Cambiar sucursal
               </button>
@@ -88,17 +88,20 @@ export function BranchHero({ branch, logoUrl, isOpen, search, onSearchChange, on
             </div>
           </div>
 
-          <div className="rounded-card border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
+          <label className="block cursor-text rounded-card border border-white/30 bg-black/40 px-4 backdrop-blur">
+            <span className="sr-only">Buscar en el menú</span>
             <div className="flex items-center gap-3">
-              <Search size={18} className="text-white/70" />
+              <Search size={18} className="text-white" aria-hidden="true" />
               <input
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
-                placeholder="¿Que se te antoja hoy?"
-                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/60"
+                type="search"
+                enterKeyHint="search"
+                placeholder="¿Qué se te antoja hoy?"
+                className="min-h-12 w-full bg-transparent py-3 text-base text-white outline-none placeholder:text-white/80"
               />
             </div>
-          </div>
+          </label>
         </div>
       </div>
     </header>
